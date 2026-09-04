@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Workshop & Coffee POS - Bản Chuyên Nghiệp Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #printable-report, #printable-report *, #printable-bill, #printable-bill * { visibility: visible; }
+            #printable-report, #printable-bill { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+        /* Touch friendly & Scrollbar hidden */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-16 lg:pb-0">
+
+    <!-- HEADER RESPONSIBLY DESIGNED FOR MOBILE -->
+    <header class="bg-indigo-900 text-white p-3 md:p-4 shadow-lg flex flex-wrap justify-between items-center gap-2 no-print sticky top-0 z-40">
+        <div class="flex items-center space-x-2.5">
+            <i class="fa-solid fa-paint-brush text-xl md:text-2xl text-amber-400"></i>
+            <div>
+                <h1 class="text-base md:text-xl font-bold tracking-wide leading-none">Workshop Coffee POS</h1>
+                <div class="flex items-center gap-1.5 mt-1">
+                    <span id="role-badge" class="text-[9px] md:text-[10px] bg-slate-700 text-slate-200 px-2 py-0.5 rounded-full font-bold">
+                        <i class="fa-solid fa-user text-amber-400"></i> Máy Order (Nhân viên)
+                    </span>
+                    <span id="sync-status" class="text-[9px] md:text-[10px] bg-slate-800 text-amber-300 px-2 py-0.5 rounded-full font-mono">Kết nối...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 ml-auto">
+            <button onclick="openQuickDrinkModal()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs transition flex items-center gap-1 shadow">
+                <i class="fa-solid fa-mug-hot"></i> Bán Mang Về
+            </button>
+            <button onclick="openDailySummaryModal()" class="admin-only hidden bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs transition flex items-center gap-1 shadow">
+                <i class="fa-solid fa-calculator text-indigo-950"></i> Kết Toán
+            </button>
+            <button onclick="toggleModal('history-modal')" class="bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 shadow">
+                <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử (<span id="history-count">0</span>)
+            </button>
+            <button onclick="openTrashModal()" class="admin-only hidden bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 shadow">
+                <i class="fa-solid fa-trash-arrow-up"></i> Thùng Rác
+            </button>
+            <button onclick="toggleModal('reservation-modal')" class="bg-amber-600 hover:bg-amber-500 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 shadow">
+                <i class="fa-solid fa-box-archive"></i> Bảo Lưu (<span id="reservation-count">0</span>)
+            </button>
+            <button onclick="toggleModal('table-modal')" class="bg-indigo-700 hover:bg-indigo-600 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs font-medium transition flex items-center gap-1">
+                <i class="fa-solid fa-border-all"></i> Quản Lý Bàn
+            </button>
+            <button onclick="toggleModal('menu-modal')" class="admin-only hidden bg-indigo-700 hover:bg-indigo-600 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs font-medium transition flex items-center gap-1">
+                <i class="fa-solid fa-list-check"></i> Menu
+            </button>
+            <button id="btn-login-toggle" onclick="handleAuthToggle()" class="bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs transition shadow flex items-center gap-1">
+                <i class="fa-solid fa-lock"></i> POS Quản Lý
+            </button>
+        </div>
+    </header>
+
+    <!-- BOTTOM NAVIGATION TABS FOR MOBILE ONLY -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 flex no-print shadow-lg">
+        <button id="tab-btn-tables" onclick="switchMobileTab('tables')" class="flex-1 py-2.5 text-center font-bold text-xs text-indigo-600 border-b-2 border-indigo-600 flex flex-col items-center gap-0.5">
+            <i class="fa-solid fa-border-all text-base"></i> Sơ Đồ Bàn
+        </button>
+        <button id="tab-btn-order" onclick="switchMobileTab('order')" class="flex-1 py-2.5 text-center font-bold text-xs text-slate-500 border-b-2 border-transparent flex flex-col items-center gap-0.5">
+            <i class="fa-solid fa-receipt text-base"></i> Chi Tiết Order
+        </button>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="max-w-7xl mx-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 no-print">
+
+        <!-- CỘT 1 & 2: SƠ ĐỒ BÀN WORKSHOP -->
+        <div id="mobile-sec-tables" class="lg:col-span-2 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-base md:text-lg font-bold text-slate-700">Sơ đồ Bàn / Khu vực Workshop</h2>
+                <div class="flex items-center space-x-3 text-[10px] md:text-xs font-semibold">
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full mr-1"></span> Trống</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 bg-amber-500 rounded-full mr-1"></span> Dùng</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full mr-1"></span> Hết giờ</span>
+                </div>
+            </div>
+            <div id="tables-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- CỘT 3: CHI TIẾT BÀN & DỊCH VỤ -->
+        <div id="mobile-sec-order" class="hidden lg:flex bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200 flex-col justify-between h-[calc(100vh-120px)] sticky top-4">
+            <div class="overflow-y-auto pr-1">
+                <!-- THÔNG TIN BÀN CHỌN -->
+                <div class="border-b pb-3 mb-3">
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h2 id="active-table-name" class="text-lg md:text-xl font-bold text-slate-800">Chọn bàn...</h2>
+                            <p id="active-table-type" class="text-xs text-slate-500">Giá: -</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span id="active-table-status" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-100 text-slate-500">Chưa chọn</span>
+                            <!-- NÚT CHUYỂN BÀN LINH HOẠT -->
+                            <button id="btn-move-table" onclick="openMoveTableModal()" class="hidden bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold px-2 py-1 rounded-lg text-[11px] transition flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-arrows-rotate"></i> Chuyển Bàn
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- BỘ ĐẾM THỜI GIAN & GIỜ VÀO -->
+                    <div id="timer-box" class="mt-3 bg-slate-50 p-3 rounded-xl border border-slate-200 transition">
+                        <div class="flex justify-between items-center mb-1">
+                            <div>
+                                <div id="timer-title" class="text-[10px] text-slate-400 uppercase font-bold">Thời gian dùng</div>
+                                <div id="timer-display" class="text-xl md:text-2xl font-mono font-bold text-slate-700">00:00:00</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] text-slate-400 uppercase font-bold">Giờ mở bàn</div>
+                                <div id="start-time-display" class="text-xs md:text-sm font-bold text-indigo-900">--:--:--</div>
+                                <div id="time-cost-display" class="text-sm md:text-base font-bold text-amber-600 mt-0.5">0đ</div>
+                            </div>
+                        </div>
+                        <div id="time-cost-note" class="text-[11px] text-indigo-700 bg-indigo-50/80 p-1.5 rounded mt-2 font-medium hidden"></div>
+                    </div>
+
+                    <!-- KHU VỰC CỘNG THÊM GIỜ / COMBO -->
+                    <div id="add-time-box" class="mt-2.5 p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1.5 hidden">
+                        <div class="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-plus text-indigo-600"></i> Áp dụng / Mua thêm giờ chơi:
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button onclick="openAddComboModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-plus"></i> Áp Combo
+                            </button>
+                            <button onclick="openCustomTimeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-clock"></i> Phút Lẻ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- THÔNG BÁO HẾT HẠN COMBO -->
+                    <div id="combo-expired-alert" class="mt-2.5 p-2.5 bg-rose-50 border border-rose-200 rounded-xl hidden">
+                        <div class="text-xs font-bold text-rose-700 mb-1 flex items-center gap-1">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Combo đã hết thời gian!
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5 mt-1.5">
+                            <button onclick="openAddComboModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold py-1.5 px-2 rounded-lg transition">
+                                Mua 1 Combo
+                            </button>
+                            <button onclick="handleComboAction('switch_hourly')" class="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold py-1.5 px-2 rounded-lg transition">
+                                Giờ Lẻ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- NÚT ĐIỀU KHIỂN BÀN -->
+                    <div class="mt-2.5 flex space-x-2">
+                        <button id="btn-toggle-time" onclick="toggleTableStatus()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition">
+                            Mở bàn (Bắt đầu)
+                        </button>
+                        <button id="btn-reset-time" onclick="resetTableTime()" class="px-3 py-2 bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-600 font-bold rounded-lg text-xs transition" title="Đặt lại bàn về mặc định">
+                            <i class="fa-solid fa-rotate-right"></i> Reset
+                        </button>
+                    </div>
+
+                    <!-- NÚT BẢO LƯU GIỜ -->
+                    <button id="btn-save-customer-time" onclick="startSaveTimeProcess()" class="w-full mt-2 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition flex items-center justify-center gap-1 shadow-sm hidden">
+                        <i class="fa-solid fa-user-clock"></i> Khách về sớm: Bảo lưu Combo dư
+                    </button>
+                </div>
+
+                <!-- KHU VỰC GỌI MÓN MỚI -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Đồ uống & Vật liệu Workshop</h3>
+                    </div>
+
+                    <div class="relative mb-2">
+                        <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                        <input id="menu-search-input" oninput="renderDetail()" type="text" placeholder="Tìm nhanh món/vật liệu..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
+
+                    <div class="flex gap-1 overflow-x-auto pb-1.5 mb-2 no-scrollbar text-[11px] font-semibold">
+                        <button onclick="setMenuCategory('all')" id="cat-btn-all" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-indigo-600 text-white">Tất cả</button>
+                        <button onclick="setMenuCategory('coffee')" id="cat-btn-coffee" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">Cà phê</button>
+                        <button onclick="setMenuCategory('tea_fruit')" id="cat-btn-tea_fruit" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">Trà chanh/tắc</button>
+                        <button onclick="setMenuCategory('milk_tea')" id="cat-btn-milk_tea" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">Trà sữa</button>
+                        <button onclick="setMenuCategory('yogurt')" id="cat-btn-yogurt" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">Sữa chua</button>
+                        <button onclick="setMenuCategory('matcha')" id="cat-btn-matcha" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">Matcha</button>
+                        <button onclick="setMenuCategory('workshop')" id="cat-btn-workshop" class="px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">Vật liệu WS</button>
+                    </div>
+
+                    <div id="services-list" class="space-y-1.5 max-h-[180px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- TỔNG TIỀN & THANH TOÁN -->
+            <div class="border-t pt-3 mt-3 bg-white">
+                <div class="space-y-1 mb-2.5 text-xs md:text-sm">
+                    <div class="flex justify-between text-slate-500">
+                        <span>Đồ uống (Nước):</span>
+                        <span id="subtotal-drinks" class="font-bold text-slate-700">0đ</span>
+                    </div>
+                    <div class="flex justify-between text-slate-500">
+                        <span>Workshop (Giờ + VL):</span>
+                        <span id="subtotal-workshop" class="font-bold text-indigo-700">0đ</span>
+                    </div>
+                    <div class="flex justify-between text-sm md:text-base font-bold text-slate-800 pt-1 border-t">
+                        <span>TỔNG CỘNG:</span>
+                        <span id="grand-total" class="text-lg md:text-xl text-indigo-600">0đ</span>
+                    </div>
+                </div>
+                <button onclick="openPaymentModal(false)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 md:py-3 rounded-xl shadow-md transition flex justify-center items-center space-x-2 text-xs md:text-sm">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Xem Hóa Đơn & VietQR</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CHUYỂN BÀN LINH HOẠT -->
+    <div id="move-table-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-800 mb-1">Chuyển Khách Sang Bàn Khác</h3>
+            <p id="move-table-subtitle" class="text-xs text-indigo-600 font-semibold mb-3"></p>
+            <form onsubmit="confirmMoveTable(event)" class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600">Chọn Bàn Đích (Trống) (*)</label>
+                    <select id="target-move-table-select" class="w-full p-2 border rounded-xl text-xs font-bold text-slate-800 bg-white mt-1">
+                    </select>
+                </div>
+                <div class="pt-1 flex gap-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs shadow">
+                        Xác Nhận Chuyển
+                    </button>
+                    <button type="button" onclick="toggleModal('move-table-modal')" class="px-3 bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs">
+                        Hủy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODALS KHÁC GIỮ NGUYÊN TÍNH NĂNG HOÀN HẢO -->
+    <div id="quick-drink-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b pb-2.5 mb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-mug-hot text-rose-600 text-lg"></i>
+                    <h3 class="text-base font-bold text-slate-800">Bán Nước Nhanh / Mang Về</h3>
+                </div>
+                <button onclick="toggleModal('quick-drink-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-2 pr-1 mb-3" id="quick-drink-list"></div>
+            <div class="border-t pt-3 bg-slate-50 p-3 rounded-xl space-y-2.5">
+                <div class="flex justify-between items-center text-sm font-bold text-slate-800">
+                    <span>Tổng tiền nước:</span>
+                    <span id="quick-drink-total" class="text-lg text-rose-600">0đ</span>
+                </div>
+                <button onclick="checkoutQuickDrink()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl shadow transition flex items-center justify-center gap-2 text-xs">
+                    <i class="fa-solid fa-qrcode"></i> Thanh Toán & In Bill Mang Về
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="trash-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-5 shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-2.5 mb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trash-arrow-up text-rose-600 text-lg"></i>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800">Thùng Rác Hóa Đơn</h3>
+                        <p class="text-[11px] text-slate-500">Khôi phục hóa đơn đã bị xóa trong 3 ngày</p>
+                    </div>
+                </div>
+                <button onclick="toggleModal('trash-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-xl border mb-3 grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                <div><label class="text-[10px] font-bold text-slate-500 block">Từ giờ:</label><input type="time" id="trash-time-from" class="w-full p-1 border rounded-lg text-xs bg-white"></div>
+                <div><label class="text-[10px] font-bold text-slate-500 block">Đến giờ:</label><input type="time" id="trash-time-to" class="w-full p-1 border rounded-lg text-xs bg-white"></div>
+                <div class="flex gap-1">
+                    <button onclick="filterTrashByTime()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-2 rounded-lg text-xs shadow"><i class="fa-solid fa-filter"></i> Lọc</button>
+                    <button onclick="restoreFilteredTrash()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2.5 rounded-lg text-xs shadow">Khôi Phục</button>
+                </div>
+            </div>
+            <div id="trash-list" class="flex-1 overflow-y-auto space-y-2 pr-1 mb-3"></div>
+            <button onclick="toggleModal('trash-modal')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-xl text-xs">Đóng Thùng Rác</button>
+        </div>
+    </div>
+
+    <div id="login-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl text-center">
+            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 text-lg mx-auto mb-2"><i class="fa-solid fa-user-shield"></i></div>
+            <h3 class="text-sm font-bold text-slate-800 mb-1">Đăng Nhập POS Quản Lý</h3>
+            <p class="text-[11px] text-slate-500 mb-3">Nhập mã PIN Quản lý để mở khóa toàn bộ quyền</p>
+            <form onsubmit="confirmAdminLogin(event)" class="space-y-2.5">
+                <input id="input-admin-pin" type="password" maxlength="6" placeholder="Mã PIN (VD: 1234)" required class="w-full p-2 border rounded-xl text-center font-mono text-base tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs shadow">Đăng Nhập</button>
+                    <button type="button" onclick="toggleModal('login-modal')" class="px-3 bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="daily-summary-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
+        <div id="printable-report" class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="text-center border-b pb-3 mb-3">
+                <div class="inline-block p-2 bg-amber-100 rounded-full text-amber-700 mb-1 no-print"><i class="fa-solid fa-calculator text-xl"></i></div>
+                <h3 class="text-base font-bold text-slate-800">BÁO CÁO KẾT TOÁN CA NGÀY</h3>
+                <p id="daily-summary-date" class="text-xs text-indigo-600 font-semibold mt-0.5"></p>
+                <p id="daily-summary-timerange" class="text-[11px] text-slate-500 font-medium italic mt-0.5"></p>
+            </div>
+            <div class="space-y-3 mb-4">
+                <div class="bg-indigo-900 text-white p-3 rounded-xl shadow-sm text-center">
+                    <div class="text-[11px] text-indigo-200 uppercase font-semibold">TỔNG DOANH THU CA</div>
+                    <div id="daily-total-revenue" class="text-xl font-bold text-amber-400 mt-0.5">0đ</div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border text-xs space-y-2">
+                    <div class="flex justify-between items-center pb-1.5 border-b"><span class="font-bold text-slate-700"><i class="fa-solid fa-mug-hot text-amber-600 mr-1"></i> Doanh Thu Nước</span><span id="daily-drink-revenue" class="font-bold text-slate-900">0đ</span></div>
+                    <div class="flex justify-between items-center pb-1.5 border-b"><span class="font-bold text-slate-700"><i class="fa-solid fa-palette text-indigo-600 mr-1"></i> Doanh Thu Workshop</span><span id="daily-ws-revenue" class="font-bold text-indigo-700">0đ</span></div>
+                    <div class="pl-3 space-y-1 text-[11px] text-slate-500 border-l-2 border-indigo-200">
+                        <div class="flex justify-between"><span>+ Tiền Bàn / Combo WS:</span><span id="daily-time-cost-sub" class="font-semibold text-slate-700">0đ</span></div>
+                        <div class="flex justify-between"><span>+ Tiền Vật Liệu WS:</span><span id="daily-ws-items-sub" class="font-semibold text-slate-700">0đ</span></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                    <div class="bg-slate-50 p-2 rounded-xl border"><span class="text-slate-400 block text-[10px]">Số Hóa Đơn</span><strong id="daily-bill-count" class="text-slate-800 font-bold text-sm">0</strong></div>
+                    <div class="bg-slate-50 p-2 rounded-xl border"><span class="text-slate-400 block text-[10px]">Lượt Bảo Lưu</span><strong id="daily-res-count" class="text-indigo-600 font-bold text-sm">0</strong></div>
+                </div>
+            </div>
+            <div class="flex gap-2 no-print">
+                <button onclick="window.print()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs shadow"><i class="fa-solid fa-print mr-1"></i> In Báo Cáo</button>
+                <button onclick="toggleModal('daily-summary-modal')" class="px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="history-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-3 border-b pb-2.5">
+                <div><h3 class="text-base font-bold text-slate-800">Lịch Sử Thanh Toán (3 Ngày)</h3><p class="text-[11px] text-slate-500">Xem hóa đơn hoặc chuyển hóa đơn lỗi vào Thùng rác</p></div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="clearAllHistoryDB()" class="admin-only hidden bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-lg text-xs shadow-sm"><i class="fa-solid fa-trash-can"></i> Xóa Tất Cả</button>
+                    <button onclick="toggleModal('history-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+            </div>
+            <div id="history-list" class="space-y-2.5 max-h-80 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <div id="history-detail-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="text-center border-b pb-2.5 mb-3"><h3 class="text-base font-bold text-slate-800">CHI TIẾT HÓA ĐƠN</h3><p id="hist-detail-title" class="text-xs text-indigo-600 font-semibold mt-0.5"></p><p id="hist-detail-date" class="text-[11px] text-slate-400 mt-0.5"></p></div>
+            <div class="mb-3">
+                <div class="text-[11px] font-bold text-slate-400 uppercase mb-1.5">Sản phẩm / dịch vụ:</div>
+                <table class="w-full text-xs text-left"><thead><tr class="border-b text-slate-400"><th class="py-1">Tên món</th><th class="py-1 text-center">SL</th><th class="py-1 text-right">Đơn giá</th><th class="py-1 text-right">Thành tiền</th></tr></thead><tbody id="hist-detail-items-body" class="divide-y"></tbody></table>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-xl border mb-3 text-xs space-y-1">
+                <div class="font-bold text-slate-700 border-b pb-1">Chi tiết thời gian:</div>
+                <div class="flex justify-between text-slate-600"><span>Loại/Gói:</span><span id="hist-detail-combo-name" class="font-bold text-indigo-900"></span></div>
+                <div class="flex justify-between text-slate-600"><span>Đơn giá:</span><span id="hist-detail-unit-price" class="font-semibold text-slate-800"></span></div>
+                <div class="flex justify-between text-slate-600"><span>Khung giờ:</span><span id="hist-detail-time-range" class="font-bold text-indigo-900"></span></div>
+                <div class="flex justify-between text-slate-600"><span>Thời gian dùng:</span><span id="hist-detail-time-used" class="font-bold text-slate-800"></span></div>
+                <div id="hist-detail-note" class="text-[11px] text-amber-700 italic bg-amber-50 p-1 rounded border border-amber-100"></div>
+                <div class="border-t pt-1 mt-1 space-y-1">
+                    <div class="flex justify-between text-slate-600"><span>Tiền Nước:</span><span id="hist-detail-drink-cost" class="font-bold text-slate-800">0đ</span></div>
+                    <div class="flex justify-between text-slate-600"><span>Vật liệu WS:</span><span id="hist-detail-ws-items-cost" class="font-bold text-slate-800">0đ</span></div>
+                    <div class="flex justify-between text-slate-600"><span>Tiền Bàn/Combo:</span><span id="hist-detail-time-cost" class="font-bold text-slate-800">0đ</span></div>
+                </div>
+                <div class="flex justify-between font-bold text-indigo-900 pt-1 border-t"><span>Tổng Doanh Thu WS:</span><span id="hist-detail-total-ws-cost" class="font-bold text-indigo-700">0đ</span></div>
+            </div>
+            <div class="flex justify-between items-center bg-indigo-50 p-2.5 rounded-xl mb-3 border border-indigo-100"><span class="font-bold text-indigo-900 text-xs">TỔNG ĐÃ TRẢ:</span><span id="hist-detail-total" class="font-bold text-indigo-600 text-lg">0đ</span></div>
+            <button onclick="toggleModal('history-detail-modal')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-xl text-xs">Đóng</button>
+        </div>
+    </div>
+
+    <div id="reservation-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-3 border-b pb-2.5">
+                <div><h3 class="text-base font-bold text-slate-800">Sổ Giờ Combo Bảo Lưu</h3><p class="text-[11px] text-slate-500">Khách đã trả tiền lần trước, tiếp tục dùng 0đ</p></div>
+                <button onclick="toggleModal('reservation-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="mb-3"><input id="search-reservation" oninput="renderReservations()" type="text" placeholder="Tìm tên hoặc SĐT..." class="w-full p-2 border rounded-xl text-xs bg-slate-50"></div>
+            <div id="reservation-list" class="space-y-2.5 max-h-72 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <div id="save-time-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-800 mb-1">Lưu Thông Tin Bảo Lưu</h3>
+            <p id="save-time-subtitle" class="text-xs font-semibold text-amber-600 mb-3"></p>
+            <form onsubmit="confirmSaveCustomerTime(event)" class="space-y-2.5">
+                <div><label class="text-xs font-bold text-slate-600">Tên khách hàng (*)</label><input id="cust-name" type="text" placeholder="VD: Anh Nam" required class="w-full p-2 border rounded-lg text-xs mt-1"></div>
+                <div><label class="text-xs font-bold text-slate-600">Số điện thoại (*)</label><input id="cust-phone" type="text" placeholder="VD: 0912345678" required class="w-full p-2 border rounded-lg text-xs mt-1"></div>
+                <div><label class="text-xs font-bold text-slate-600">Ghi chú (Tùy chọn)</label><input id="cust-note" type="text" placeholder="VD: Dở tượng" class="w-full p-2 border rounded-lg text-xs mt-1"></div>
+                <div class="pt-1 flex gap-2">
+                    <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg text-xs shadow">Hoàn Tất</button>
+                    <button type="button" onclick="toggleModal('save-time-modal')" class="px-3 bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-combo-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl">
+            <h3 id="add-combo-modal-title" class="text-base font-bold text-slate-800 mb-1">Áp Dụng Gói Combo</h3>
+            <p id="add-combo-modal-desc" class="text-xs text-slate-500 mb-3">Chọn gói Combo cho bàn</p>
+            <form onsubmit="confirmAddCombo(event)" class="space-y-2.5">
+                <div><label class="text-xs font-bold text-slate-600">Chọn gói Combo (*)</label><select id="input-add-combo-select" onchange="updateComboPriceSuggestion()" class="w-full p-2 border rounded-lg text-xs font-bold text-indigo-700 mt-1 bg-white"><option value="2">Combo 2 tiếng</option><option value="3">Combo 3 tiếng</option><option value="4">Combo 4 tiếng</option></select></div>
+                <div><label class="text-xs font-bold text-slate-600">Giá tiền Combo (VNĐ) (*)</label><input id="input-add-combo-price" type="number" min="0" placeholder="VD: 89000" required class="w-full p-2 border rounded-lg text-xs font-bold text-indigo-700 mt-1"></div>
+                <div class="pt-1 flex gap-2"><button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs shadow">Xác Nhận</button><button type="button" onclick="toggleModal('add-combo-modal')" class="px-3 bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs">Hủy</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="custom-time-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-800 mb-1">Mua Thêm Phút Lẻ</h3>
+            <p class="text-xs text-slate-500 mb-3">Tính theo đơn giá giờ lẻ của bàn</p>
+            <form onsubmit="confirmAddCustomMinutes(event)" class="space-y-2.5">
+                <div><label class="text-xs font-bold text-slate-600">Số phút mua thêm (*)</label><input id="input-custom-minutes" type="number" min="1" placeholder="VD: 30" required class="w-full p-2 border rounded-lg text-xs mt-1 font-bold text-indigo-700"></div>
+                <div class="pt-1 flex gap-2"><button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs shadow">Xác Nhận</button><button type="button" onclick="toggleModal('custom-time-modal')" class="px-3 bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs">Hủy</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="table-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-3"><h3 class="text-base font-bold text-slate-800">Quản Lý Bàn & Giá</h3><button onclick="toggleModal('table-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+            <form id="table-form" onsubmit="saveTable(event)" class="bg-slate-50 p-3 rounded-xl border mb-3 space-y-2.5">
+                <input type="hidden" id="edit-table-id" value="">
+                <div class="grid grid-cols-3 gap-2">
+                    <input id="input-table-name" type="text" placeholder="Tên bàn" required class="p-1.5 border rounded-lg text-xs">
+                    <input id="input-table-type" type="text" placeholder="Loại" required class="p-1.5 border rounded-lg text-xs">
+                    <select id="input-pricing-mode" onchange="toggleComboInputs()" class="p-1.5 border rounded-lg text-xs font-bold text-indigo-700 bg-white"><option value="combo">Gói Combo</option><option value="hourly">Giờ lẻ truyền thống</option></select>
+                </div>
+                <div id="combo-settings" class="p-2.5 bg-indigo-50/60 rounded-lg border border-indigo-100 grid grid-cols-3 gap-2">
+                    <div><label class="text-[10px] font-bold text-slate-500">Giá Combo gói đầu</label><input id="input-combo-price" type="number" placeholder="89000" class="p-1 border rounded text-xs w-full"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500">Combo chuẩn</label><select id="input-combo-hours" class="p-1 border rounded text-xs w-full bg-white font-bold text-indigo-700"><option value="2">2 tiếng</option><option value="3">3 tiếng</option><option value="4">4 tiếng</option></select></div>
+                    <div><label class="text-[10px] font-bold text-slate-500">Giá giờ dôi(/h)</label><input id="input-extra-hour-price" type="number" placeholder="29000" class="p-1 border rounded text-xs w-full"></div>
+                </div>
+                <div id="hourly-settings" class="p-2.5 bg-amber-50/60 rounded-lg border border-amber-100 hidden"><label class="text-[10px] font-bold text-slate-500">Đơn giá giờ lẻ (VNĐ/h)</label><input id="input-table-price" type="number" placeholder="40000" class="p-1 border rounded text-xs w-full"></div>
+                <div class="flex gap-2"><button type="submit" id="btn-save-table" class="flex-1 bg-indigo-600 text-white font-semibold py-1.5 rounded-lg text-xs hover:bg-indigo-700">Thêm Bàn Mới</button><button type="button" onclick="cancelEditTable()" id="btn-cancel-table" class="hidden bg-slate-300 text-slate-700 font-semibold px-3 py-1.5 rounded-lg text-xs">Hủy</button></div>
+            </form>
+            <div id="tables-editor-list" class="max-h-48 overflow-y-auto space-y-1.5"></div>
+        </div>
+    </div>
+
+    <div id="menu-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-3"><h3 class="text-base font-bold">Chỉnh sửa Menu Quán</h3><button onclick="toggleModal('menu-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+            <form onsubmit="addMenuItem(event)" class="grid grid-cols-3 gap-2 mb-3 bg-slate-50 p-2.5 rounded-xl border">
+                <input id="item-name" type="text" placeholder="Tên món" required class="p-1.5 border rounded-lg text-xs col-span-1">
+                <input id="item-price" type="number" placeholder="Giá" required class="p-1.5 border rounded-lg text-xs col-span-1">
+                <select id="item-category" class="p-1.5 border rounded-lg text-xs col-span-1 font-bold text-indigo-700"><option value="coffee">Cà phê</option><option value="tea_fruit">Trà chanh/tắc</option><option value="milk_tea">Trà sữa</option><option value="yogurt">Sữa chua</option><option value="matcha">Matcha</option><option value="workshop">Vật liệu WS</option></select>
+                <button type="submit" class="col-span-3 bg-indigo-600 text-white font-semibold py-1.5 rounded-lg text-xs hover:bg-indigo-700 mt-0.5">Thêm Món Mới</button>
+            </form>
+            <div id="menu-editor-list" class="max-h-52 overflow-y-auto space-y-1.5"></div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div id="printable-bill" class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="text-center border-b pb-2.5 mb-2.5"><h3 class="text-base font-bold text-slate-800">HÓA ĐƠN THANH TOÁN</h3><p id="bill-table-name" class="text-xs text-indigo-600 font-semibold"></p></div>
+            <div class="mb-3">
+                <div class="text-[11px] font-bold text-slate-400 uppercase mb-1.5">Chi tiết sản phẩm / dịch vụ:</div>
+                <table class="w-full text-xs text-left"><thead><tr class="border-b text-slate-400"><th class="py-1">Tên món</th><th class="py-1 text-center">SL</th><th class="py-1 text-right">Đơn giá</th><th class="py-1 text-right">Thành tiền</th></tr></thead><tbody id="bill-items-body" class="divide-y"></tbody></table>
+            </div>
+            <div id="bill-time-section" class="bg-slate-50 p-2.5 rounded-xl border mb-3 text-xs space-y-1">
+                <div class="font-bold text-slate-700 border-b pb-1 mb-1">Chi tiết tiền thời gian:</div>
+                <div class="flex justify-between text-slate-600"><span>Giờ vào:</span><span id="bill-start-time" class="font-bold text-indigo-900">--:--:--</span></div>
+                <div class="flex justify-between text-slate-600"><span>Thời gian thực tế:</span><span id="bill-time-used" class="font-bold">00:00:00</span></div>
+                <div id="bill-time-detail" class="text-[11px] text-slate-500"></div>
+                <div class="flex justify-between font-bold text-slate-800 pt-1 border-t"><span>Tiền thời gian:</span><span id="bill-time-cost" class="text-amber-600">0đ</span></div>
+            </div>
+            <div class="flex justify-between items-center bg-indigo-50 p-2.5 rounded-xl mb-3 border border-indigo-100"><span class="font-bold text-indigo-900 text-xs">TỔNG KHÁCH TRẢ:</span><span id="bill-grand-total" class="font-bold text-indigo-600 text-lg">0đ</span></div>
+            <div class="text-center bg-slate-50 p-2.5 rounded-xl border mb-3 no-print">
+                <p class="text-[10px] text-slate-500 mb-1.5">Chạm vào mã QR bên dưới để phóng to toàn màn hình:</p>
+                <div class="flex justify-center cursor-pointer group" onclick="toggleModal('full-qr-modal')"><img id="qr-image" src="" alt="VietQR" class="w-40 h-48 object-contain rounded-lg border bg-white p-1 shadow-sm"></div>
+            </div>
+            <div class="flex space-x-2 no-print">
+                <button onclick="window.print()" class="px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition" title="In Hóa Đơn"><i class="fa-solid fa-print"></i> In Bill</button>
+                <button id="btn-confirm-payment" onclick="finishPayment()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow"><i class="fa-solid fa-check mr-1"></i> Hoàn thành & Trả bàn</button>
+                <button onclick="toggleModal('qr-modal')" class="px-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="full-qr-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50 no-print cursor-pointer" onclick="toggleModal('full-qr-modal')">
+        <div class="bg-white rounded-3xl p-5 shadow-2xl max-w-xs w-full text-center relative" onclick="event.stopPropagation()">
+            <button onclick="toggleModal('full-qr-modal')" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <h3 class="text-sm font-bold text-slate-800 mb-1">MÃ CHUYỂN KHOẢN VIETQR</h3>
+            <p id="full-qr-table-name" class="text-xs text-indigo-600 font-bold mb-2"></p>
+            <div class="flex justify-center bg-slate-50 p-2 rounded-2xl border mb-2"><img id="full-qr-image" src="" alt="VietQR Phóng To" class="w-full max-h-[50vh] object-contain rounded-xl bg-white p-1"></div>
+            <div class="text-indigo-900 font-bold text-xl mb-2.5" id="full-qr-total">0đ</div>
+            <button onclick="toggleModal('full-qr-modal')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs shadow">Đóng Mã QR</button>
+        </div>
+    </div>
+
+    <script>
+        // ================= CẤU HÌNH SUPABASE & BANK =================
+        const SUPABASE_URL = "https://zhewyhnghfuejcqwetle.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZXd5aG5naGZ1ZWpjcXdldGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MjQ5MzIsImV4cCI6MjEwNDAwMDkzMn0.wFCJLTH1TnXw0S94I7DqFNl6_4EBC-eeYmeTtXRzitU"; 
+
+        const ADMIN_PIN = "1612"; // MÃ PIN ĐĂNG NHẬP MÁY QUẢN LÝ POS
+
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const BANK_CONFIG = {
+            BANK_ID: "TPB",
+            ACCOUNT_NO: "28386338866",
+            ACCOUNT_NAME: "NGUYEN VAN TIN"
+        };
+        // =============================================================
+
+        let menuData = [];
+        let tablesData = [];
+        let reservationsData = [];
+        let historyData = [];
+        let trashHistoryData = [];
+
+        let selectedTableId = null;
+        let isReservationModeForPayment = false;
+        let isQuickDrinkPayment = false;
+        let quickDrinkCart = {};
+        let currentMenuCategory = 'all';
+        let isAdmin = false; // Mặc định là máy Order Nhân viên
+
+        function switchMobileTab(tab) {
+            const secTables = document.getElementById('mobile-sec-tables');
+            const secOrder = document.getElementById('mobile-sec-order');
+            const btnTables = document.getElementById('tab-btn-tables');
+            const btnOrder = document.getElementById('tab-btn-order');
+
+            if (tab === 'tables') {
+                secTables.classList.remove('hidden');
+                secOrder.classList.add('hidden');
+                secOrder.classList.remove('flex');
+                btnTables.className = "flex-1 py-2.5 text-center font-bold text-xs text-indigo-600 border-b-2 border-indigo-600 flex flex-col items-center gap-0.5";
+                btnOrder.className = "flex-1 py-2.5 text-center font-bold text-xs text-slate-500 border-b-2 border-transparent flex flex-col items-center gap-0.5";
+            } else {
+                secTables.classList.add('hidden');
+                secOrder.classList.remove('hidden');
+                secOrder.classList.add('flex');
+                btnOrder.className = "flex-1 py-2.5 text-center font-bold text-xs text-indigo-600 border-b-2 border-indigo-600 flex flex-col items-center gap-0.5";
+                btnTables.className = "flex-1 py-2.5 text-center font-bold text-xs text-slate-500 border-b-2 border-transparent flex flex-col items-center gap-0.5";
+            }
+        }
+
+        function updateSyncStatus(text, colorClass) {
+            const statusElem = document.getElementById('sync-status');
+            if (statusElem) {
+                statusElem.innerText = text;
+                statusElem.className = `text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-mono ${colorClass}`;
+            }
+        }
+
+        function handleAuthToggle() {
+            if (isAdmin) {
+                isAdmin = false;
+                updateRoleUI();
+                alert("Đã đăng xuất Chế độ Quản lý!");
+            } else {
+                toggleModal('login-modal');
+            }
+        }
+
+        function confirmAdminLogin(e) {
+            e.preventDefault();
+            const pin = document.getElementById('input-admin-pin').value;
+            if (pin === ADMIN_PIN) {
+                isAdmin = true;
+                updateRoleUI();
+                toggleModal('login-modal');
+                document.getElementById('input-admin-pin').value = '';
+                alert("Đăng nhập Chế độ Quản lý POS thành công!");
+            } else {
+                alert("Mã PIN không đúng! Vui lòng thử lại.");
+            }
+        }
+
+        function updateRoleUI() {
+            const badge = document.getElementById('role-badge');
+            const loginBtn = document.getElementById('btn-login-toggle');
+            const adminElems = document.querySelectorAll('.admin-only');
+
+            if (isAdmin) {
+                badge.innerHTML = `<i class="fa-solid fa-user-shield text-emerald-400"></i> Máy POS (Quản Lý)`;
+                badge.className = "text-[9px] md:text-[10px] bg-emerald-900 text-emerald-200 px-2 py-0.5 rounded-full font-bold";
+                loginBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất`;
+                loginBtn.className = "bg-rose-600 hover:bg-rose-500 text-white font-bold px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs transition shadow flex items-center gap-1";
+                adminElems.forEach(el => el.classList.remove('hidden'));
+            } else {
+                badge.innerHTML = `<i class="fa-solid fa-user text-amber-400"></i> Máy Order (Nhân viên)`;
+                badge.className = "text-[9px] md:text-[10px] bg-slate-700 text-slate-200 px-2 py-0.5 rounded-full font-bold";
+                loginBtn.innerHTML = `<i class="fa-solid fa-lock"></i> POS Quản Lý`;
+                loginBtn.className = "bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs transition shadow flex items-center gap-1";
+                adminElems.forEach(el => el.classList.add('hidden'));
+            }
+            renderHistory();
+        }
+
+        async function fetchAllData() {
+            updateSyncStatus("Đang nạp...", "bg-amber-800 text-amber-200");
+            try {
+                const [resTables, resMenu, resOrders, resReservations, resHistory] = await Promise.all([
+                    _supabase.from('tables').select('*').order('id'),
+                    _supabase.from('menu').select('*').order('created_at', { ascending: true }),
+                    _supabase.from('order_items').select('*'),
+                    _supabase.from('reservations').select('*').order('created_at', { ascending: false }),
+                    _supabase.from('history').select('*').order('timestamp', { ascending: false }).limit(300)
+                ]);
+
+                menuData = resMenu.data || [];
+                reservationsData = (resReservations.data || []).map(r => ({
+                    id: r.id, name: r.name, phone: r.phone, note: r.note,
+                    savedMinutes: r.saved_minutes, tableName: r.table_name,
+                    comboHours: r.combo_hours, comboPrice: r.combo_price,
+                    extraHourPrice: r.extra_hour_price, createdDate: r.created_date
+                }));
+
+                const allHistory = resHistory.data || [];
+                historyData = [];
+                trashHistoryData = [];
+
+                allHistory.forEach(h => {
+                    const item = {
+                        id: h.id, timestamp: h.timestamp, tableName: h.table_name,
+                        tableType: h.table_type, customerName: h.customer_name,
+                        startTimeStr: h.start_time_str, endTimeStr: h.end_time_str,
+                        timeUsedSec: h.time_used_sec, comboLabel: h.combo_label,
+                        unitPriceStr: h.unit_price_str, timeNote: h.time_note,
+                        drinkCost: h.drink_cost, wsItemsCost: h.ws_items_cost,
+                        timeCost: h.time_cost, totalWorkshopCost: h.total_ws_cost,
+                        detailedItems: h.detailed_items || [], totalCost: h.total_cost,
+                        isReservation: h.is_reservation, isDeleted: h.is_deleted || false
+                    };
+
+                    if (item.isDeleted) trashHistoryData.push(item);
+                    else historyData.push(item);
+                });
+
+                const orderMap = {};
+                (resOrders.data || []).forEach(o => {
+                    if (!orderMap[o.table_id]) orderMap[o.table_id] = {};
+                    orderMap[o.table_id][o.item_id] = o.quantity;
+                });
+
+                tablesData = (resTables.data || []).map(t => ({
+                    id: t.id, name: t.name, type: t.type, status: t.status,
+                    accumulatedTime: t.accumulated_time, lastStartTime: t.last_start_time,
+                    sessionStartTime: t.session_start_time,
+                    pricingMode: t.pricing_mode, comboPrice: t.combo_price,
+                    comboHours: t.combo_hours, extraComboHours: t.extra_combo_hours,
+                    extraComboPrice: t.extra_combo_price, extraMinutes: t.extra_minutes,
+                    extraHourPrice: t.extra_hour_price, pricePerHour: t.price_per_hour,
+                    defaultPricingMode: t.default_pricing_mode,
+                    defaultComboHours: t.default_combo_hours,
+                    defaultComboPrice: t.default_combo_price,
+                    isReservationCombo: t.is_reservation_combo,
+                    items: orderMap[t.id] || {}
+                }));
+
+                if (!selectedTableId && tablesData.length > 0) {
+                    selectedTableId = tablesData[0].id;
+                }
+
+                render();
+                updateSyncStatus("Realtime Active", "bg-emerald-800 text-emerald-200");
+            } catch (err) {
+                console.error("Lỗi fetchAllData:", err);
+                updateSyncStatus("Lỗi tải", "bg-rose-800 text-rose-200");
+            }
+        }
+
+        function initSupabaseRealtime() {
+            fetchAllData();
+
+            _supabase
+                .channel('public-db-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, payload => {
+                    if (payload.eventType === 'UPDATE') {
+                        const idx = tablesData.findIndex(t => t.id === payload.new.id);
+                        if (idx !== -1) {
+                            const currentItems = tablesData[idx].items;
+                            tablesData[idx] = {
+                                ...tablesData[idx],
+                                name: payload.new.name, type: payload.new.type, status: payload.new.status,
+                                accumulatedTime: payload.new.accumulated_time,
+                                lastStartTime: payload.new.last_start_time,
+                                sessionStartTime: payload.new.session_start_time,
+                                pricingMode: payload.new.pricing_mode, comboPrice: payload.new.combo_price,
+                                comboHours: payload.new.combo_hours, extraComboHours: payload.new.extra_combo_hours,
+                                extraComboPrice: payload.new.extra_combo_price, extraMinutes: payload.new.extra_minutes,
+                                extraHourPrice: payload.new.extra_hour_price, pricePerHour: payload.new.price_per_hour,
+                                isReservationCombo: payload.new.is_reservation_combo,
+                                items: currentItems
+                            };
+                            render();
+                        }
+                    } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+                        fetchAllData();
+                    }
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, payload => {
+                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                        const { table_id, item_id, quantity } = payload.new;
+                        const t = tablesData.find(tb => tb.id === table_id);
+                        if (t) {
+                            if (quantity > 0) t.items[item_id] = quantity;
+                            else delete t.items[item_id];
+                            if (table_id === selectedTableId) renderDetail();
+                        }
+                    } else if (payload.eventType === 'DELETE') {
+                        const { table_id, item_id } = payload.old;
+                        const t = tablesData.find(tb => tb.id === table_id);
+                        if (t) {
+                            delete t.items[item_id];
+                            if (table_id === selectedTableId) renderDetail();
+                        }
+                    }
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'menu' }, payload => {
+                    const newItem = payload.new;
+                    if (!menuData.find(m => m.id === newItem.id)) {
+                        menuData.push(newItem);
+                        renderDetail();
+                        renderMenuEditor();
+                    }
+                })
+                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'menu' }, payload => {
+                    const deletedId = payload.old.id;
+                    menuData = menuData.filter(m => m.id !== deletedId);
+                    renderDetail();
+                    renderMenuEditor();
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reservations' }, payload => {
+                    const r = payload.new;
+                    const item = {
+                        id: r.id, name: r.name, phone: r.phone, note: r.note,
+                        savedMinutes: r.saved_minutes, tableName: r.table_name,
+                        comboHours: r.combo_hours, comboPrice: r.combo_price,
+                        extraHourPrice: r.extra_hour_price, createdDate: r.created_date
+                    };
+                    if (!reservationsData.find(x => x.id === item.id)) {
+                        reservationsData.unshift(item);
+                        renderTables();
+                        renderReservations();
+                    }
+                })
+                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reservations' }, payload => {
+                    const deletedId = payload.old.id;
+                    reservationsData = reservationsData.filter(x => x.id !== deletedId);
+                    renderTables();
+                    renderReservations();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'history' }, () => {
+                    fetchAllData();
+                })
+                .subscribe();
+        }
+
+        async function updateTableOnDB(table) {
+            updateSyncStatus("Đang lưu...", "bg-indigo-800 text-indigo-200");
+            await _supabase.from('tables').update({
+                name: table.name, type: table.type, status: table.status,
+                accumulated_time: table.accumulatedTime, last_start_time: table.lastStartTime,
+                session_start_time: table.sessionStartTime, pricing_mode: table.pricingMode,
+                combo_price: table.comboPrice, combo_hours: table.comboHours,
+                extra_combo_hours: table.extraComboHours, extra_combo_price: table.extraComboPrice,
+                extra_minutes: table.extraMinutes, extra_hour_price: table.extraHourPrice,
+                price_per_hour: table.pricePerHour, is_reservation_combo: table.isReservationCombo,
+                updated_at: new Date().toISOString()
+            }).eq('id', table.id);
+            updateSyncStatus("Realtime Active", "bg-emerald-800 text-emerald-200");
+        }
+
+        async function updateOrderItemOnDB(tableId, itemId, quantity) {
+            updateSyncStatus("Đang lưu...", "bg-indigo-800 text-indigo-200");
+            if (quantity > 0) {
+                await _supabase.from('order_items').upsert({ table_id: tableId, item_id: itemId, quantity });
+            } else {
+                await _supabase.from('order_items').delete().eq('table_id', tableId).eq('item_id', itemId);
+            }
+            updateSyncStatus("Realtime Active", "bg-emerald-800 text-emerald-200");
+        }
+
+        async function clearAllOrderItemsOnDB(tableId) {
+            await _supabase.from('order_items').delete().eq('table_id', tableId);
+        }
+
+        // ================= TÍNH NĂNG CHUYỂN BÀN LINH HOẠT =================
+        function openMoveTableModal() {
+            const currentTable = tablesData.find(t => t.id === selectedTableId);
+            if (!currentTable || (currentTable.status !== 'active' && currentTable.status !== 'paused')) {
+                alert("Bàn hiện tại không có khách để chuyển!");
+                return;
+            }
+
+            const selectElem = document.getElementById('target-move-table-select');
+            selectElem.innerHTML = '';
+
+            const availableTables = tablesData.filter(t => t.status === 'ready');
+            if (availableTables.length === 0) {
+                alert("Tất cả các bàn còn lại đều đã có khách! Không có bàn trống để chuyển.");
+                return;
+            }
+
+            availableTables.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.innerText = `${t.name} (${t.type})`;
+                selectElem.appendChild(opt);
+            });
+
+            document.getElementById('move-table-subtitle').innerText = `Đang chuyển [${currentTable.name}] sang bàn mới...`;
+            toggleModal('move-table-modal');
+        }
+
+        async function confirmMoveTable(e) {
+            e.preventDefault();
+            const sourceTable = tablesData.find(t => t.id === selectedTableId);
+            const targetTableId = parseInt(document.getElementById('target-move-table-select').value);
+            const targetTable = tablesData.find(t => t.id === targetTableId);
+
+            if (!sourceTable || !targetTable) return;
+
+            // Bê toàn bộ trạng thái & giờ đếm ngược sang Bàn Đích
+            targetTable.status = sourceTable.status;
+            targetTable.accumulatedTime = sourceTable.accumulatedTime;
+            targetTable.lastStartTime = sourceTable.lastStartTime;
+            targetTable.sessionStartTime = sourceTable.sessionStartTime;
+            targetTable.pricingMode = sourceTable.pricingMode;
+            targetTable.comboPrice = sourceTable.comboPrice;
+            targetTable.comboHours = sourceTable.comboHours;
+            targetTable.extraComboHours = sourceTable.extraComboHours;
+            targetTable.extraComboPrice = sourceTable.extraComboPrice;
+            targetTable.extraMinutes = sourceTable.extraMinutes;
+            targetTable.extraHourPrice = sourceTable.extraHourPrice;
+            targetTable.pricePerHour = sourceTable.pricePerHour;
+            targetTable.isReservationCombo = sourceTable.isReservationCombo;
+            targetTable.items = { ...sourceTable.items };
+
+            // Reset bàn cũ về trạng thái Bàn Trống
+            sourceTable.status = 'ready';
+            sourceTable.accumulatedTime = 0;
+            sourceTable.lastStartTime = null;
+            sourceTable.sessionStartTime = null;
+            sourceTable.extraComboHours = 0;
+            sourceTable.extraComboPrice = 0;
+            sourceTable.extraMinutes = 0;
+            sourceTable.items = {};
+            sourceTable.isReservationCombo = false;
+
+            // Cập nhật lên Supabase
+            await updateTableOnDB(sourceTable);
+            await updateTableOnDB(targetTable);
+
+            // Chuyển toàn bộ danh sách Order items trong DB
+            await clearAllOrderItemsOnDB(sourceTable.id);
+            for (let itemId in targetTable.items) {
+                await updateOrderItemOnDB(targetTable.id, itemId, targetTable.items[itemId]);
+            }
+
+            selectedTableId = targetTable.id;
+            toggleModal('move-table-modal');
+            render();
+            alert(`Đã chuyển thành công toàn bộ thông tin từ [${sourceTable.name}] sang [${targetTable.name}]!`);
+        }
+
+        function formatMinutesToText(totalMinutes) {
+            if (isNaN(totalMinutes) || totalMinutes < 0) totalMinutes = 0;
+            const h = Math.floor(totalMinutes / 60);
+            const m = Math.round(totalMinutes % 60);
+            return h > 0 ? (m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`) : `${m} phút`;
+        }
+
+        function formatSecondsToClock(totalSec) {
+            if (isNaN(totalSec) || totalSec < 0) totalSec = 0;
+            const h = Math.floor(totalSec / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = Math.floor(totalSec % 60);
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function formatTimestampToTime(timestamp) {
+            if (!timestamp || isNaN(timestamp)) return "--:--:--";
+            return new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function getElapsedSeconds(table) {
+            let total = table.accumulatedTime || 0;
+            if (table.status === 'active' && table.lastStartTime) {
+                total += Math.floor((Date.now() - table.lastStartTime) / 1000);
+            }
+            return isNaN(total) ? 0 : total;
+        }
+
+        function calculateTimeCostDetails(table) {
+            const elapsed = getElapsedSeconds(table);
+            const totalHours = elapsed / 3600;
+
+            if (table.pricingMode === 'combo') {
+                const baseComboPrice = table.isReservationCombo ? 0 : (table.comboPrice || 89000);
+                const baseComboHours = table.comboHours || 2;
+                const extraComboHours = table.extraComboHours || 0;
+                const extraComboPrice = table.extraComboPrice || 0;
+                const totalComboHours = baseComboHours + extraComboHours;
+                const extraPricePerHour = table.extraHourPrice || 29000;
+                const extraMinutes = table.extraMinutes || 0;
+                const extraMinutesCost = Math.round((extraMinutes / 60) * extraPricePerHour);
+
+                const totalComboDurationSec = (totalComboHours * 3600) + (extraMinutes * 60);
+                const isExpired = elapsed >= totalComboDurationSec;
+                const remainingSec = Math.max(0, totalComboDurationSec - elapsed);
+                const comboTotalCost = baseComboPrice + extraComboPrice + extraMinutesCost;
+
+                let timeCost = 0, note = "";
+                let labelText = `Combo ${baseComboHours}h`;
+                if (extraComboHours > 0) labelText += ` + Mua thêm Combo ${extraComboHours}h`;
+                if (extraMinutes > 0) labelText += ` + ${extraMinutes}p lẻ`;
+
+                if (!isExpired) {
+                    timeCost = comboTotalCost;
+                    note = table.isReservationCombo ? `${labelText} - 0đ (Đã thanh toán lần trước)` : `${labelText} - Đang đếm ngược`;
+                } else {
+                    const extraHoursSec = elapsed - totalComboDurationSec;
+                    const extraHours = extraHoursSec / 3600;
+                    const extraCost = Math.round(extraHours * extraPricePerHour);
+                    timeCost = comboTotalCost + extraCost;
+                    note = `Đã hết ${labelText}. Dôi ${extraHours.toFixed(1)}h: +${extraCost.toLocaleString()}đ`;
+                }
+
+                return { elapsedSeconds: elapsed, isCombo: true, isExpired, remainingSec, totalComboHours, timeCost, note, labelText, unitPriceStr: table.isReservationCombo ? "0đ (Bảo lưu)" : `${(table.comboPrice || 0).toLocaleString()}đ/gói` };
+            } else {
+                const rate = table.pricePerHour || 40000;
+                const totalCost = Math.round(totalHours * rate);
+                return { elapsedSeconds: elapsed, isCombo: false, isExpired: false, remainingSec: 0, timeCost: totalCost, note: `Tính giờ lẻ (${rate.toLocaleString()}đ/h)`, labelText: `Giờ lẻ truyền thống`, unitPriceStr: `${rate.toLocaleString()}đ/giờ` };
+            }
+        }
+
+        function openQuickDrinkModal() {
+            quickDrinkCart = {};
+            renderQuickDrinkList();
+            toggleModal('quick-drink-modal');
+        }
+
+        function renderQuickDrinkList() {
+            const container = document.getElementById('quick-drink-list');
+            container.innerHTML = '';
+
+            const drinkItems = menuData.filter(m => m.category !== 'workshop');
+            let total = 0;
+
+            drinkItems.forEach(item => {
+                const qty = quickDrinkCart[item.id] || 0;
+                total += item.price * qty;
+
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center p-2 rounded-xl bg-slate-50 border";
+                row.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-800 text-xs">${item.name}</div>
+                        <div class="text-[10px] text-slate-500">${item.price.toLocaleString()}đ</div>
+                    </div>
+                    <div class="flex items-center space-x-2 bg-white border rounded-lg px-2 py-1 shadow-sm">
+                        <button onclick="updateQuickDrinkQty('${item.id}', -1)" class="text-slate-400 hover:text-rose-600 font-bold text-sm px-1">-</button>
+                        <span class="text-xs font-bold w-4 text-center">${qty}</span>
+                        <button onclick="updateQuickDrinkQty('${item.id}', 1)" class="text-slate-400 hover:text-emerald-600 font-bold text-sm px-1">+</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+
+            document.getElementById('quick-drink-total').innerText = `${total.toLocaleString()}đ`;
+        }
+
+        function updateQuickDrinkQty(itemId, change) {
+            const current = quickDrinkCart[itemId] || 0;
+            const updated = Math.max(0, current + change);
+            if (updated === 0) delete quickDrinkCart[itemId];
+            else quickDrinkCart[itemId] = updated;
+            renderQuickDrinkList();
+        }
+
+        function checkoutQuickDrink() {
+            let total = 0;
+            const detailedItems = [];
+
+            for (let itemId in quickDrinkCart) {
+                const item = menuData.find(m => m.id === itemId);
+                if (item) {
+                    const qty = quickDrinkCart[itemId];
+                    const itemTotal = item.price * qty;
+                    total += itemTotal;
+                    detailedItems.push({ name: item.name, qty, price: item.price, total: itemTotal, category: item.category });
+                }
+            }
+
+            if (total <= 0) {
+                alert("Vui lòng chọn ít nhất 1 món nước!");
+                return;
+            }
+
+            isQuickDrinkPayment = true;
+            toggleModal('quick-drink-modal');
+
+            const tbody = document.getElementById('bill-items-body');
+            tbody.innerHTML = '';
+            detailedItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="py-1 font-medium text-slate-700">${item.name}</td>
+                    <td class="py-1 text-center">${item.qty}</td>
+                    <td class="py-1 text-right">${item.price.toLocaleString()}đ</td>
+                    <td class="py-1 text-right font-semibold">${item.total.toLocaleString()}đ</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('bill-table-name').innerText = "Hóa đơn: Bán Mang Về (Khách Lẻ)";
+            document.getElementById('bill-time-section').classList.add('hidden');
+            document.getElementById('bill-grand-total').innerText = `${total.toLocaleString()}đ`;
+            document.getElementById('full-qr-table-name').innerText = "Bán Nước Mang Về";
+            document.getElementById('full-qr-total').innerText = `${total.toLocaleString()}đ`;
+
+            const btnConfirm = document.getElementById('btn-confirm-payment');
+            btnConfirm.innerHTML = `<i class="fa-solid fa-check mr-1"></i> Hoàn tất Bán Mang Về`;
+            btnConfirm.className = "flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs shadow";
+
+            const memo = encodeURIComponent(`TT Ban Nuoc Mang Ve`);
+            const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.BANK_ID}-${BANK_CONFIG.ACCOUNT_NO}-compact2.png?amount=${total}&addInfo=${memo}&accountName=${encodeURIComponent(BANK_CONFIG.ACCOUNT_NAME)}`;
+            document.getElementById('qr-image').src = qrUrl;
+            document.getElementById('full-qr-image').src = qrUrl;
+
+            toggleModal('qr-modal');
+        }
+
+        function renderTables() {
+            const container = document.getElementById('tables-grid');
+            container.innerHTML = '';
+
+            if (tablesData.length === 0) {
+                container.innerHTML = `<div class="col-span-3 text-center py-8 text-slate-400 text-sm">Chưa có bàn nào. Nhấn "Quản lý Bàn" để thêm!</div>`;
+                return;
+            }
+
+            tablesData.forEach(t => {
+                const isSelected = t.id === selectedTableId;
+                const timeData = calculateTimeCostDetails(t);
+                const isActive = t.status === 'active';
+                const isPaused = t.status === 'paused';
+                const isExpired = timeData.isCombo && timeData.isExpired && (isActive || isPaused);
+
+                let cardBg = 'border-slate-100 bg-slate-50 hover:border-slate-300';
+                if (isSelected) cardBg = isExpired ? 'border-rose-500 bg-rose-50/60 shadow-md' : 'border-indigo-600 bg-indigo-50/50 shadow-md';
+
+                let statusDot = 'bg-emerald-500', statusText = 'Trống', statusClass = 'text-slate-400';
+                if (isActive) {
+                    if (isExpired) { statusDot = 'bg-rose-500 animate-pulse'; statusText = 'Hết Combo'; statusClass = 'text-rose-600 font-bold'; }
+                    else { statusDot = 'bg-amber-500 animate-pulse'; statusText = 'Đang dùng'; statusClass = 'text-amber-600 font-bold'; }
+                } else if (isPaused) {
+                    statusDot = 'bg-sky-500'; statusText = 'Tạm dừng'; statusClass = 'text-sky-600 font-bold';
+                }
+
+                let priceInfo = t.pricingMode === 'combo' ? `Combo ${t.comboHours}h` : `${t.pricePerHour.toLocaleString()}đ/h`;
+                if (t.extraComboHours > 0) priceInfo += ` (+Combo ${t.extraComboHours}h)`;
+
+                const card = document.createElement('div');
+                card.className = `p-3 md:p-4 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between ${cardBg}`;
+                card.onclick = () => { 
+                    selectedTableId = t.id; 
+                    render(); 
+                    if (window.innerWidth < 1024) switchMobileTab('order');
+                };
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[9px] md:text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">${t.type}</span>
+                            <span class="w-2.5 h-2.5 rounded-full ${statusDot}"></span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 mt-1.5 text-xs md:text-sm">${t.name}</h3>
+                        <p class="text-[11px] text-indigo-600 font-medium">${priceInfo}</p>
+                    </div>
+                    <div class="mt-2.5 pt-1.5 border-t border-slate-200/60 flex justify-between items-center text-xs">
+                        <span class="${statusClass} text-[11px]">${statusText}</span>
+                        <i class="fa-solid fa-chevron-right text-slate-300 text-[10px]"></i>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('reservation-count').innerText = reservationsData.length;
+            document.getElementById('history-count').innerText = historyData.length;
+        }
+
+        function setMenuCategory(cat) {
+            currentMenuCategory = cat;
+            ['all', 'coffee', 'tea_fruit', 'milk_tea', 'yogurt', 'matcha', 'workshop'].forEach(c => {
+                const btn = document.getElementById(`cat-btn-${c}`);
+                if (btn) btn.className = c === cat ? "px-2 py-1 rounded-lg border whitespace-nowrap bg-indigo-600 text-white shadow-sm" : "px-2 py-1 rounded-lg border whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200";
+            });
+            renderDetail();
+        }
+
+        function renderDetail() {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) {
+                document.getElementById('active-table-name').innerText = "Chưa chọn bàn";
+                document.getElementById('services-list').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('active-table-name').innerText = table.name;
+            const comboLabel = table.isReservationCombo ? `Combo Bảo Lưu (0đ)` : `Combo ${table.comboHours}h (${table.comboPrice.toLocaleString()}đ)`;
+            let activeTypeStr = table.pricingMode === 'combo' ? comboLabel : `Giờ lẻ: ${table.pricePerHour.toLocaleString()}đ/giờ`;
+            if (table.extraComboHours > 0) activeTypeStr += ` (+Combo ${table.extraComboHours}h)`;
+            if (table.extraMinutes > 0) activeTypeStr += ` (+${table.extraMinutes}p lẻ)`;
+
+            document.getElementById('active-table-type').innerText = activeTypeStr;
+
+            const statusBadge = document.getElementById('active-table-status');
+            const btnMoveTable = document.getElementById('btn-move-table');
+            const btnToggle = document.getElementById('btn-toggle-time');
+            const btnSaveCustomerTime = document.getElementById('btn-save-customer-time');
+            const addTimeBox = document.getElementById('add-time-box');
+            const comboAlert = document.getElementById('combo-expired-alert');
+
+            const timeData = calculateTimeCostDetails(table);
+
+            if (table.status === 'active' || table.status === 'paused') {
+                btnMoveTable.classList.remove('hidden');
+            } else {
+                btnMoveTable.classList.add('hidden');
+            }
+
+            if ((table.status === 'active' || table.status === 'paused') && table.pricingMode === 'combo') btnSaveCustomerTime.classList.remove('hidden');
+            else btnSaveCustomerTime.classList.add('hidden');
+
+            if (table.status === 'active' || table.status === 'paused') addTimeBox.classList.remove('hidden');
+            else addTimeBox.classList.add('hidden');
+
+            if (table.status === 'active') {
+                if (timeData.isCombo && timeData.isExpired) {
+                    statusBadge.innerText = 'Hết Combo'; statusBadge.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-700'; comboAlert.classList.remove('hidden');
+                } else {
+                    statusBadge.innerText = 'Đang dùng'; statusBadge.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-700'; comboAlert.classList.add('hidden');
+                }
+                btnToggle.innerText = 'Tắt bàn / Trả bàn'; btnToggle.className = 'flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs transition';
+            } else {
+                statusBadge.innerText = 'Bàn trống'; statusBadge.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700'; comboAlert.classList.add('hidden');
+                btnToggle.innerText = 'Mở bàn (Bắt đầu)'; btnToggle.className = 'flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition';
+            }
+
+            const searchKeyword = (document.getElementById('menu-search-input')?.value || '').toLowerCase();
+            const servicesContainer = document.getElementById('services-list');
+            servicesContainer.innerHTML = '';
+
+            const filteredMenu = menuData.filter(item => {
+                const matchCategory = currentMenuCategory === 'all' || item.category === currentMenuCategory;
+                const matchSearch = item.name.toLowerCase().includes(searchKeyword);
+                return matchCategory && matchSearch;
+            });
+
+            if (filteredMenu.length === 0) {
+                servicesContainer.innerHTML = `<div class="text-center py-3 text-slate-400 text-xs italic">Không tìm thấy món</div>`;
+            } else {
+                filteredMenu.forEach(item => {
+                    const count = table.items[item.id] || 0;
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-between items-center p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition border';
+                    row.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid ${item.category === 'workshop' ? 'fa-palette text-indigo-600' : 'fa-mug-hot text-amber-600'} text-xs"></i>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-700">${item.name}</div>
+                                <div class="text-[10px] text-slate-400">${item.price.toLocaleString()}đ</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1.5 bg-white border rounded-lg px-2 py-0.5 shadow-sm">
+                            <button onclick="updateItemCount('${item.id}', -1)" class="text-slate-400 hover:text-slate-700 font-bold px-1 text-xs">-</button>
+                            <span class="text-xs font-bold w-4 text-center">${count}</span>
+                            <button onclick="updateItemCount('${item.id}', 1)" class="text-slate-400 hover:text-slate-700 font-bold px-1 text-xs">+</button>
+                        </div>
+                    `;
+                    servicesContainer.appendChild(row);
+                });
+            }
+
+            calculateTotal(table);
+        }
+
+        function calculateTotal(table) {
+            const timerBox = document.getElementById('timer-box');
+            const timerTitle = document.getElementById('timer-title');
+            const timerDisplay = document.getElementById('timer-display');
+            const startTimeDisplay = document.getElementById('start-time-display');
+            const noteElem = document.getElementById('time-cost-note');
+
+            if (table.status === 'active' || table.status === 'paused') {
+                const timeData = calculateTimeCostDetails(table);
+                startTimeDisplay.innerText = formatTimestampToTime(table.sessionStartTime);
+
+                if (timeData.isCombo) {
+                    if (!timeData.isExpired) {
+                        timerTitle.innerText = "Thời gian Combo còn lại";
+                        timerBox.className = "mt-3 bg-indigo-50/80 p-3 rounded-xl border border-indigo-200 transition";
+                        timerDisplay.innerText = formatSecondsToClock(timeData.remainingSec);
+                        timerDisplay.className = "text-xl md:text-2xl font-mono font-bold text-indigo-700";
+                    } else {
+                        timerTitle.innerText = "Thơi gian dôi ngoài Combo";
+                        timerBox.className = "mt-3 bg-rose-50/80 p-3 rounded-xl border border-rose-200 transition";
+                        const totalComboSec = (timeData.totalComboHours * 3600) + ((table.extraMinutes || 0) * 60);
+                        const extraSec = timeData.elapsedSeconds - totalComboSec;
+                        timerDisplay.innerText = `+${formatSecondsToClock(extraSec)}`;
+                        timerDisplay.className = "text-xl md:text-2xl font-mono font-bold text-rose-600";
+                    }
+                } else {
+                    timerTitle.innerText = "Thời gian dùng (Giờ lẻ)";
+                    timerBox.className = "mt-3 bg-slate-50 p-3 rounded-xl border border-slate-200 transition";
+                    timerDisplay.innerText = formatSecondsToClock(timeData.elapsedSeconds);
+                    timerDisplay.className = "text-xl md:text-2xl font-mono font-bold text-slate-700";
+                }
+
+                document.getElementById('time-cost-display').innerText = `${timeData.timeCost.toLocaleString()}đ`;
+                noteElem.innerText = timeData.note;
+                noteElem.classList.remove('hidden');
+            } else {
+                timerTitle.innerText = "Thời gian dùng";
+                timerBox.className = "mt-3 bg-slate-50 p-3 rounded-xl border border-slate-200 transition";
+                timerDisplay.innerText = "00:00:00";
+                timerDisplay.className = "text-xl md:text-2xl font-mono font-bold text-slate-700";
+                startTimeDisplay.innerText = "--:--:--";
+                document.getElementById('time-cost-display').innerText = "0đ";
+                noteElem.innerText = "";
+                noteElem.classList.add('hidden');
+            }
+
+            let drinksCost = 0, wsItemsCost = 0;
+            for (let itemId in table.items) {
+                const item = menuData.find(m => m.id === itemId);
+                if (item) {
+                    const itemTotal = item.price * table.items[itemId];
+                    if (item.category === 'workshop') wsItemsCost += itemTotal;
+                    else drinksCost += itemTotal;
+                }
+            }
+
+            const timeCostVal = (table.status === 'active' || table.status === 'paused') ? calculateTimeCostDetails(table).timeCost : 0;
+            const totalWorkshopCost = timeCostVal + wsItemsCost;
+            const grandTotalCost = drinksCost + totalWorkshopCost;
+
+            document.getElementById('subtotal-drinks').innerText = `${drinksCost.toLocaleString()}đ`;
+            document.getElementById('subtotal-workshop').innerText = `${totalWorkshopCost.toLocaleString()}đ`;
+            document.getElementById('grand-total').innerText = `${grandTotalCost.toLocaleString()}đ`;
+        }
+
+        function updateComboPriceSuggestion() {
+            const hours = parseInt(document.getElementById('input-add-combo-select').value) || 2;
+            const priceInput = document.getElementById('input-add-combo-price');
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (table && hours === table.defaultComboHours) priceInput.value = table.defaultComboPrice || 89000;
+            else {
+                if (hours === 2) priceInput.value = 89000;
+                else if (hours === 3) priceInput.value = 120000;
+                else if (hours === 4) priceInput.value = 150000;
+            }
+        }
+
+        function openAddComboModal() {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table || (table.status !== 'active' && table.status !== 'paused')) {
+                alert('Vui lòng chọn bàn đang hoạt động để áp dụng Combo!');
+                return;
+            }
+            const modalTitle = document.getElementById('add-combo-modal-title');
+            const modalDesc = document.getElementById('add-combo-modal-desc');
+            const selectElem = document.getElementById('input-add-combo-select');
+
+            if (table.pricingMode === 'hourly') {
+                modalTitle.innerText = "Chuyển Sang Gói Combo";
+                modalDesc.innerText = `Chọn gói Combo đếm ngược cho ${table.name}`;
+                selectElem.value = table.defaultComboHours || 2;
+            } else {
+                modalTitle.innerText = "Mua Thêm Gói Combo";
+                modalDesc.innerText = `Cộng thêm giờ Combo cho bàn ${table.name}`;
+            }
+            updateComboPriceSuggestion();
+            toggleModal('add-combo-modal');
+        }
+
+        async function confirmAddCombo(e) {
+            e.preventDefault();
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            const selectedHours = parseInt(document.getElementById('input-add-combo-select').value) || 2;
+            const selectedPrice = parseInt(document.getElementById('input-add-combo-price').value) || 0;
+
+            if (table.pricingMode === 'hourly') {
+                table.pricingMode = 'combo';
+                table.comboHours = selectedHours;
+                table.comboPrice = selectedPrice;
+                table.extraComboHours = 0; table.extraComboPrice = 0; table.extraMinutes = 0;
+                table.isReservationCombo = false;
+                table.lastStartTime = Date.now(); table.accumulatedTime = 0;
+            } else {
+                table.extraComboHours = (table.extraComboHours || 0) + selectedHours;
+                table.extraComboPrice = (table.extraComboPrice || 0) + selectedPrice;
+            }
+
+            await updateTableOnDB(table);
+            toggleModal('add-combo-modal');
+            render();
+        }
+
+        function openCustomTimeModal() {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table || (table.status !== 'active' && table.status !== 'paused')) {
+                alert('Vui lòng chọn bàn đang hoạt động để mua thêm phút lẻ!');
+                return;
+            }
+            toggleModal('custom-time-modal');
+        }
+
+        async function confirmAddCustomMinutes(e) {
+            e.preventDefault();
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            const addMinutes = parseInt(document.getElementById('input-custom-minutes').value) || 0;
+            if (addMinutes <= 0) return;
+
+            table.extraMinutes = (table.extraMinutes || 0) + addMinutes;
+            await updateTableOnDB(table);
+            toggleModal('custom-time-modal');
+            document.getElementById('input-custom-minutes').value = '';
+            render();
+        }
+
+        async function toggleTableStatus() {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            if (table.status === 'ready') {
+                table.status = 'active';
+                table.lastStartTime = Date.now();
+                table.sessionStartTime = Date.now();
+                table.accumulatedTime = 0;
+                table.isReservationCombo = false;
+                await updateTableOnDB(table);
+            } else {
+                openPaymentModal(false);
+                return;
+            }
+            render();
+        }
+
+        async function resetTableToDefaultDB(table) {
+            table.status = 'ready';
+            table.accumulatedTime = 0;
+            table.lastStartTime = null;
+            table.sessionStartTime = null;
+            table.extraComboHours = 0;
+            table.extraComboPrice = 0;
+            table.extraMinutes = 0;
+            table.items = {};
+            table.isReservationCombo = false;
+
+            if (table.defaultPricingMode) table.pricingMode = table.defaultPricingMode;
+            if (table.defaultComboHours) table.comboHours = table.defaultComboHours;
+            if (table.defaultComboPrice) table.comboPrice = table.defaultComboPrice;
+
+            await updateTableOnDB(table);
+            await clearAllOrderItemsOnDB(table.id);
+        }
+
+        async function resetTableTime() {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            if (confirm(`Đặt lại thời gian cho ${table.name}?`)) {
+                await resetTableToDefaultDB(table);
+                render();
+            }
+        }
+
+        async function handleComboAction(action) {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            if (action === 'extend_combo') openAddComboModal();
+            else if (action === 'switch_hourly') {
+                table.pricingMode = 'hourly';
+                await updateTableOnDB(table);
+                render();
+            }
+        }
+
+        function startSaveTimeProcess() {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            if (table.pricingMode !== 'combo') { alert('Chỉ áp dụng bảo lưu cho bàn dùng gói Combo!'); return; }
+            const timeData = calculateTimeCostDetails(table);
+            if (timeData.isExpired) { alert('Gói Combo của bàn đã hết thời gian, không thể bảo lưu!'); return; }
+
+            openPaymentModal(true);
+        }
+
+        async function confirmSaveCustomerTime(e) {
+            e.preventDefault();
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            const timeData = calculateTimeCostDetails(table);
+            const name = document.getElementById('cust-name').value;
+            const phone = document.getElementById('cust-phone').value;
+            const note = document.getElementById('cust-note').value;
+            const savedMin = Math.floor(timeData.remainingSec / 60);
+
+            const newResObj = {
+                id: 'res_' + Date.now(),
+                name, phone, note, savedMinutes: savedMin,
+                tableName: table.name, comboHours: table.comboHours || 2,
+                comboPrice: table.comboPrice || 89000, extraHourPrice: table.extraHourPrice || 29000,
+                createdDate: new Date().toLocaleDateString('vi-VN')
+            };
+
+            reservationsData.unshift(newResObj);
+            renderTables();
+            renderReservations();
+
+            const newRes = {
+                id: newResObj.id, name, phone, note, saved_minutes: savedMin,
+                table_name: table.name, combo_hours: table.comboHours || 2,
+                combo_price: table.comboPrice || 89000, extra_hour_price: table.extraHourPrice || 29000,
+                created_date: newResObj.createdDate
+            };
+
+            await _supabase.from('reservations').insert(newRes);
+            await saveToHistoryDB(table, true, name);
+            await resetTableToDefaultDB(table);
+
+            toggleModal('save-time-modal');
+            render();
+            alert(`Đã bảo lưu thành công cho khách ${name}!`);
+        }
+
+        function renderReservations() {
+            const container = document.getElementById('reservation-list');
+            const searchKeyword = document.getElementById('search-reservation').value.toLowerCase();
+            container.innerHTML = '';
+
+            const filtered = reservationsData.filter(r => r.name.toLowerCase().includes(searchKeyword) || r.phone.includes(searchKeyword));
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-5 text-slate-400 text-xs">Không tìm thấy thông tin bảo lưu</div>`;
+                return;
+            }
+
+            const availableTables = tablesData.filter(t => t.status === 'ready');
+            filtered.forEach(r => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-50 p-3 rounded-xl border text-xs space-y-2";
+                const timeText = formatMinutesToText(r.savedMinutes || 0);
+
+                let tableSelectHTML = availableTables.length > 0 ? `
+                    <div class="flex items-center gap-2 pt-1 border-t border-slate-200">
+                        <select id="target-table-${r.id}" class="flex-1 p-1.5 border rounded-lg text-xs bg-white font-semibold text-slate-700">
+                            ${availableTables.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join('')}
+                        </select>
+                        <button onclick="applyReservationToSelectedTable('${r.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-2.5 rounded-lg text-xs transition shadow-sm">
+                            Bảo lưu (0đ)
+                        </button>
+                    </div>
+                ` : `<div class="text-[11px] text-rose-600 font-medium italic pt-1 border-t"><i class="fa-solid fa-circle-exclamation mr-1"></i> Không có bàn trống!</div>`;
+
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center gap-1.5 mb-0.5">
+                                <span class="font-bold text-slate-800">${r.name}</span>
+                                <span class="text-indigo-600 font-semibold">${r.phone}</span>
+                                <span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold text-[9px]">Combo ${r.comboHours || 2}h</span>
+                            </div>
+                            <div class="text-slate-600">Dư: <strong class="text-amber-600">${timeText}</strong> (0đ)</div>
+                            <div class="text-[10px] text-slate-400">${r.createdDate} ${r.note ? '| ' + r.note : ''}</div>
+                        </div>
+                    </div>
+                    ${tableSelectHTML}
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        async function applyReservationToSelectedTable(resId) {
+            const selectElem = document.getElementById(`target-table-${resId}`);
+            if (!selectElem) return;
+
+            const targetTableId = parseInt(selectElem.value);
+            const table = tablesData.find(t => t.id === targetTableId);
+            const res = reservationsData.find(r => r.id === resId);
+
+            if (!res || !table || table.status !== 'ready') return;
+
+            selectedTableId = table.id;
+            table.pricingMode = 'combo';
+            table.comboHours = res.comboHours || 2; 
+            table.extraHourPrice = res.extraHourPrice || 29000;
+            table.extraComboHours = 0; table.extraComboPrice = 0; table.extraMinutes = 0;
+            table.status = 'active';
+            table.lastStartTime = Date.now(); table.sessionStartTime = Date.now();
+            table.isReservationCombo = true;
+
+            const totalComboSec = table.comboHours * 3600;
+            const remainingSec = (res.savedMinutes || 0) * 60;
+            table.accumulatedTime = Math.max(0, totalComboSec - remainingSec);
+
+            reservationsData = reservationsData.filter(r => r.id !== resId);
+            renderReservations();
+            renderTables();
+
+            await updateTableOnDB(table);
+            await _supabase.from('reservations').delete().eq('id', resId);
+
+            toggleModal('reservation-modal');
+            render();
+        }
+
+        async function updateItemCount(itemId, change) {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            const current = table.items[itemId] || 0;
+            const updated = Math.max(0, current + change);
+
+            if (updated === 0) delete table.items[itemId];
+            else table.items[itemId] = updated;
+
+            await updateOrderItemOnDB(table.id, itemId, updated);
+            renderDetail();
+        }
+
+        async function saveToHistoryDB(table, isReservation = false, customerName = "") {
+            const timeData = calculateTimeCostDetails(table);
+            const elapsedSec = getElapsedSeconds(table);
+            
+            let drinkCost = 0, wsItemsCost = 0, detailedItems = [];
+            for (let itemId in table.items) {
+                const item = menuData.find(m => m.id === itemId);
+                if (item) {
+                    const qty = table.items[itemId];
+                    const itemTotal = item.price * qty;
+                    if (item.category === 'workshop') wsItemsCost += itemTotal;
+                    else drinkCost += itemTotal;
+
+                    detailedItems.push({ name: item.name, qty, price: item.price, total: itemTotal, category: item.category });
+                }
+            }
+
+            const totalWorkshopCost = timeData.timeCost + wsItemsCost;
+            const grandTotal = drinkCost + totalWorkshopCost;
+
+            const newHistoryObj = {
+                id: 'hist_' + Date.now(), timestamp: Date.now(), tableName: table.name,
+                tableType: table.type, customerName: customerName || "Khách vãng lai",
+                startTimeStr: formatTimestampToTime(table.sessionStartTime),
+                endTimeStr: formatTimestampToTime(Date.now()), timeUsedSec: elapsedSec || 0,
+                comboLabel: timeData.labelText || "Giờ lẻ truyền thống",
+                unitPriceStr: timeData.unitPriceStr || "0đ", timeNote: timeData.note,
+                drinkCost: drinkCost, wsItemsCost: wsItemsCost, timeCost: timeData.timeCost,
+                totalWorkshopCost: totalWorkshopCost, detailedItems: detailedItems,
+                totalCost: grandTotal, isReservation: isReservation, isDeleted: false
+            };
+
+            historyData.unshift(newHistoryObj);
+            renderTables();
+            renderHistory();
+
+            const newHistory = {
+                id: newHistoryObj.id, timestamp: newHistoryObj.timestamp, table_name: table.name,
+                table_type: table.type, customer_name: customerName || "Khách vãng lai",
+                start_time_str: newHistoryObj.startTimeStr, end_time_str: newHistoryObj.endTimeStr,
+                time_used_sec: elapsedSec || 0, combo_label: timeData.labelText || "Giờ lẻ truyền thống",
+                unit_price_str: timeData.unitPriceStr || "0đ", time_note: timeData.note,
+                drink_cost: drinkCost, ws_items_cost: wsItemsCost, time_cost: timeData.timeCost,
+                total_ws_cost: totalWorkshopCost, detailed_items: detailedItems,
+                total_cost: grandTotal, is_reservation: isReservation, is_deleted: false
+            };
+
+            await _supabase.from('history').insert(newHistory);
+        }
+
+        async function saveQuickDrinkHistory() {
+            let total = 0;
+            const detailedItems = [];
+
+            for (let itemId in quickDrinkCart) {
+                const item = menuData.find(m => m.id === itemId);
+                if (item) {
+                    const qty = quickDrinkCart[itemId];
+                    const itemTotal = item.price * qty;
+                    total += itemTotal;
+                    detailedItems.push({ name: item.name, qty, price: item.price, total: itemTotal, category: item.category });
+                }
+            }
+
+            const newHistoryObj = {
+                id: 'hist_' + Date.now(), timestamp: Date.now(), tableName: "Bán Mang Về",
+                tableType: "Khách lẻ", customerName: "Khách mua nước",
+                startTimeStr: "--:--:--", endTimeStr: formatTimestampToTime(Date.now()),
+                timeUsedSec: 0, comboLabel: "Không tính giờ",
+                unitPriceStr: "0đ", timeNote: "Bán nước mang về",
+                drinkCost: total, wsItemsCost: 0, timeCost: 0,
+                totalWorkshopCost: 0, detailedItems: detailedItems,
+                totalCost: total, isReservation: false, isDeleted: false
+            };
+
+            historyData.unshift(newHistoryObj);
+            renderHistory();
+
+            const newHistory = {
+                id: newHistoryObj.id, timestamp: newHistoryObj.timestamp, table_name: "Bán Mang Về",
+                table_type: "Khách lẻ", customer_name: "Khách mua nước",
+                start_time_str: "--:--:--", end_time_str: newHistoryObj.endTimeStr,
+                time_used_sec: 0, combo_label: "Không tính giờ",
+                unit_price_str: "0đ", time_note: "Bán nước mang về",
+                drink_cost: total, wsItemsCost: 0, time_cost: 0,
+                totalWorkshopCost: 0, detailed_items: detailedItems,
+                total_cost: total, is_reservation: false, is_deleted: false
+            };
+
+            await _supabase.from('history').insert(newHistory);
+        }
+
+        async function deleteHistoryItem(id) {
+            if (!isAdmin) {
+                alert("Chỉ Quản lý mới có quyền xóa hóa đơn lỗi!");
+                return;
+            }
+
+            if (confirm("Xác nhận chuyển hóa đơn này vào Thùng Rác (Lưu 3 ngày)?")) {
+                const item = historyData.find(h => h.id === id);
+                if (item) {
+                    item.isDeleted = true;
+                    trashHistoryData.unshift(item);
+                    historyData = historyData.filter(h => h.id !== id);
+
+                    renderTables();
+                    renderHistory();
+
+                    await _supabase.from('history').update({ is_deleted: true }).eq('id', id);
+                }
+            }
+        }
+
+        async function clearAllHistoryDB() {
+            if (!isAdmin) {
+                alert("Chỉ Quản lý mới có quyền xóa tất cả hóa đơn!");
+                return;
+            }
+
+            if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn chuyển TOÀN BỘ lịch sử hiện tại vào Thùng Rác không?")) {
+                const ids = historyData.map(h => h.id);
+                historyData.forEach(h => {
+                    h.isDeleted = true;
+                    trashHistoryData.unshift(h);
+                });
+                historyData = [];
+
+                renderTables();
+                renderHistory();
+
+                await _supabase.from('history').update({ is_deleted: true }).in('id', ids);
+                alert("Đã chuyển tất cả hóa đơn vào Thùng Rác thành công!");
+            }
+        }
+
+        function openTrashModal() {
+            renderTrashList();
+            toggleModal('trash-modal');
+        }
+
+        function renderTrashList(itemsToRender = null) {
+            const container = document.getElementById('trash-list');
+            container.innerHTML = '';
+
+            const list = itemsToRender || trashHistoryData;
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center py-5 text-slate-400 text-xs">Thùng rác trống</div>`;
+                return;
+            }
+
+            list.forEach(h => {
+                const item = document.createElement('div');
+                item.className = "bg-rose-50/50 p-2.5 rounded-xl border border-rose-100 flex justify-between items-center text-xs";
+                const dateStr = new Date(h.timestamp).toLocaleString('vi-VN');
+
+                item.innerHTML = `
+                    <div>
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="font-bold text-slate-800">${h.tableName}</span>
+                            <span class="text-indigo-600 font-semibold">${h.customerName}</span>
+                            <span class="text-[10px] text-slate-400">(${dateStr})</span>
+                        </div>
+                        <div class="text-slate-500">
+                            Tổng tiền: <strong class="text-rose-600">${(h.totalCost || 0).toLocaleString()}đ</strong>
+                        </div>
+                    </div>
+                    <button onclick="restoreSingleHistory('${h.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2 rounded-lg text-xs shadow transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Khôi Phục
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        async function restoreSingleHistory(id) {
+            const item = trashHistoryData.find(h => h.id === id);
+            if (item) {
+                item.isDeleted = false;
+                historyData.unshift(item);
+                trashHistoryData = trashHistoryData.filter(h => h.id !== id);
+
+                renderTrashList();
+                renderHistory();
+                renderTables();
+
+                await _supabase.from('history').update({ is_deleted: false }).eq('id', id);
+                alert(`Đã khôi phục thành công hóa đơn [${item.tableName}]!`);
+            }
+        }
+
+        function filterTrashByTime() {
+            const fromVal = document.getElementById('trash-time-from').value;
+            const toVal = document.getElementById('trash-time-to').value;
+
+            if (!fromVal || !toVal) {
+                alert("Vui lòng chọn cả khung giờ Bắt đầu và Kết thúc!");
+                return;
+            }
+
+            const filtered = trashHistoryData.filter(h => {
+                const timeStr = new Date(h.timestamp).toTimeString().substring(0, 5);
+                return timeStr >= fromVal && timeStr <= toVal;
+            });
+
+            renderTrashList(filtered);
+        }
+
+        async function restoreFilteredTrash() {
+            const fromVal = document.getElementById('trash-time-from').value;
+            const toVal = document.getElementById('trash-time-to').value;
+
+            if (!fromVal || !toVal) {
+                alert("Vui lòng chọn khoảng thời gian để khôi phục!");
+                return;
+            }
+
+            const filtered = trashHistoryData.filter(h => {
+                const timeStr = new Date(h.timestamp).toTimeString().substring(0, 5);
+                return timeStr >= fromVal && timeStr <= toVal;
+            });
+
+            if (filtered.length === 0) {
+                alert("Không có hóa đơn nào nằm trong khoảng thời gian này!");
+                return;
+            }
+
+            if (confirm(`Xác nhận khôi phục ${filtered.length} hóa đơn trong khung giờ ${fromVal} - ${toVal}?`)) {
+                const idsToRestore = filtered.map(f => f.id);
+
+                filtered.forEach(f => {
+                    f.isDeleted = false;
+                    historyData.unshift(f);
+                });
+
+                trashHistoryData = trashHistoryData.filter(h => !idsToRestore.includes(h.id));
+
+                renderTrashList();
+                renderHistory();
+                renderTables();
+
+                await _supabase.from('history').update({ is_deleted: false }).in('id', idsToRestore);
+                alert(`Đã khôi phục thành công ${filtered.length} hóa đơn!`);
+            }
+        }
+
+        function openDailySummaryModal() {
+            const now = new Date();
+            const startOfShift = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0, 0).getTime();
+            const endOfShift = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+
+            const todayBills = historyData.filter(h => h.timestamp >= startOfShift && h.timestamp <= endOfShift);
+
+            let totalRevenue = 0, drinkRevenue = 0, wsItemsRevenue = 0, wsTimeRevenue = 0, resCount = 0;
+            todayBills.forEach(h => {
+                totalRevenue += (h.totalCost || 0); drinkRevenue += (h.drinkCost || 0);
+                wsItemsRevenue += (h.wsItemsCost || 0); wsTimeRevenue += (h.timeCost || 0);
+                if (h.isReservation) resCount++;
+            });
+
+            document.getElementById('daily-summary-date').innerText = `Ngày: ${now.toLocaleDateString('vi-VN')}`;
+            document.getElementById('daily-summary-timerange').innerText = `Khung giờ ca: 07:00 ➔ ${formatTimestampToTime(now.getTime())}`;
+            document.getElementById('daily-total-revenue').innerText = `${totalRevenue.toLocaleString()}đ`;
+            document.getElementById('daily-drink-revenue').innerText = `${drinkRevenue.toLocaleString()}đ`;
+            document.getElementById('daily-ws-revenue').innerText = `${(wsTimeRevenue + wsItemsRevenue).toLocaleString()}đ`;
+            document.getElementById('daily-time-cost-sub').innerText = `${wsTimeRevenue.toLocaleString()}đ`;
+            document.getElementById('daily-ws-items-sub').innerText = `${wsItemsRevenue.toLocaleString()}đ`;
+            document.getElementById('daily-bill-count').innerText = todayBills.length;
+            document.getElementById('daily-res-count').innerText = resCount;
+
+            toggleModal('daily-summary-modal');
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+
+            if (historyData.length === 0) {
+                container.innerHTML = `<div class="text-center py-5 text-slate-400 text-xs">Chưa có hóa đơn nào</div>`;
+                return;
+            }
+
+            historyData.forEach((h, idx) => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-50 p-2.5 rounded-xl border flex justify-between items-center text-xs";
+                const dateStr = new Date(h.timestamp).toLocaleString('vi-VN');
+
+                const deleteBtnHTML = isAdmin 
+                    ? `<button onclick="deleteHistoryItem('${h.id}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold p-1 rounded-lg text-xs transition" title="Xóa hóa đơn lỗi"><i class="fa-solid fa-trash"></i></button>` 
+                    : '';
+
+                item.innerHTML = `
+                    <div>
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="font-bold text-slate-800">${h.tableName}</span>
+                            <span class="text-indigo-600 font-semibold">${h.customerName}</span>
+                            <span class="text-[9px] text-slate-400">(${dateStr})</span>
+                        </div>
+                        <div class="text-slate-600 text-[11px]">
+                            Nước: <strong class="text-slate-800">${(h.drinkCost || 0).toLocaleString()}đ</strong> | WS: <strong class="text-indigo-700">${(h.totalWorkshopCost || 0).toLocaleString()}đ</strong> | Tổng: <strong class="text-amber-600">${(h.totalCost || 0).toLocaleString()}đ</strong>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button class="btn-detail-item bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-2.5 rounded-lg text-xs transition shadow-sm">
+                            <i class="fa-solid fa-eye mr-0.5"></i> Xem
+                        </button>
+                        ${deleteBtnHTML}
+                    </div>
+                `;
+                item.querySelector('.btn-detail-item').onclick = () => openHistoryDetailModal(idx);
+                container.appendChild(item);
+            });
+        }
+
+        function openHistoryDetailModal(index) {
+            const h = historyData[index];
+            if (!h) return;
+
+            document.getElementById('hist-detail-title').innerText = `${h.tableName} - Khách: ${h.customerName}`;
+            document.getElementById('hist-detail-date').innerText = `Thanh toán: ${new Date(h.timestamp).toLocaleString('vi-VN')}`;
+
+            const tbody = document.getElementById('hist-detail-items-body');
+            tbody.innerHTML = '';
+
+            if (h.detailedItems && h.detailedItems.length > 0) {
+                h.detailedItems.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-1 font-medium text-slate-700">${item.name}</td>
+                        <td class="py-1 text-center">${item.qty}</td>
+                        <td class="py-1 text-right">${item.price.toLocaleString()}đ</td>
+                        <td class="py-1 text-right font-semibold">${item.total.toLocaleString()}đ</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-2 text-center text-slate-400 italic">Khách không gọi đồ uống/vật liệu thêm</td></tr>`;
+            }
+
+            const minutesUsed = Math.round((h.timeUsedSec || 0) / 60);
+            document.getElementById('hist-detail-time-range').innerText = `${h.startTimeStr || '--:--'} ➔ ${h.endTimeStr || '--:--'}`;
+            document.getElementById('hist-detail-time-used').innerText = `${formatMinutesToText(minutesUsed)} (${formatSecondsToClock(h.timeUsedSec || 0)})`;
+            document.getElementById('hist-detail-combo-name').innerText = h.comboLabel || "Giờ lẻ";
+            document.getElementById('hist-detail-unit-price').innerText = h.unitPriceStr || "0đ";
+
+            const noteElem = document.getElementById('hist-detail-note');
+            if (h.timeNote) { noteElem.innerText = h.timeNote; noteElem.classList.remove('hidden'); }
+            else noteElem.classList.add('hidden');
+
+            document.getElementById('hist-detail-drink-cost').innerText = `${(h.drinkCost || 0).toLocaleString()}đ`;
+            document.getElementById('hist-detail-ws-items-cost').innerText = `${(h.wsItemsCost || 0).toLocaleString()}đ`;
+            document.getElementById('hist-detail-time-cost').innerText = `${(h.timeCost || 0).toLocaleString()}đ`;
+            document.getElementById('hist-detail-total-ws-cost').innerText = `${(h.totalWorkshopCost || 0).toLocaleString()}đ`;
+            document.getElementById('hist-detail-total').innerText = `${(h.totalCost || 0).toLocaleString()}đ`;
+
+            toggleModal('history-detail-modal');
+        }
+
+        function openPaymentModal(forReservation = false) {
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            isReservationModeForPayment = forReservation;
+            isQuickDrinkPayment = false;
+            document.getElementById('bill-time-section').classList.remove('hidden');
+
+            const timeData = calculateTimeCostDetails(table);
+
+            const tbody = document.getElementById('bill-items-body');
+            tbody.innerHTML = '';
+            let itemsCost = 0, hasItems = false;
+
+            for (let itemId in table.items) {
+                const item = menuData.find(m => m.id === itemId);
+                if (item) {
+                    hasItems = true;
+                    const qty = table.items[itemId];
+                    const itemTotal = item.price * qty;
+                    itemsCost += itemTotal;
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-1 font-medium text-slate-700">${item.name}</td>
+                        <td class="py-1 text-center">${qty}</td>
+                        <td class="py-1 text-right">${item.price.toLocaleString()}đ</td>
+                        <td class="py-1 text-right font-semibold">${itemTotal.toLocaleString()}đ</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+            }
+
+            if (!hasItems) tbody.innerHTML = `<tr><td colspan="4" class="py-2 text-center text-slate-400 italic">Khách không gọi thêm đồ uống/vật liệu</td></tr>`;
+
+            const elapsedSec = getElapsedSeconds(table);
+            document.getElementById('bill-start-time').innerText = formatTimestampToTime(table.sessionStartTime);
+            document.getElementById('bill-time-used').innerText = formatSecondsToClock(elapsedSec);
+            document.getElementById('bill-time-detail').innerText = timeData.note;
+            document.getElementById('bill-time-cost').innerText = `${timeData.timeCost.toLocaleString()}đ`;
+
+            const grandTotal = itemsCost + timeData.timeCost;
+            document.getElementById('bill-table-name').innerText = `Hóa đơn: ${table.name}`;
+            document.getElementById('bill-grand-total').innerText = `${grandTotal.toLocaleString()}đ`;
+            document.getElementById('full-qr-table-name').innerText = `${table.name} (${table.type})`;
+            document.getElementById('full-qr-total').innerText = `${grandTotal.toLocaleString()}đ`;
+
+            const btnConfirm = document.getElementById('btn-confirm-payment');
+            if (forReservation) {
+                btnConfirm.innerHTML = `<i class="fa-solid fa-arrow-right mr-1"></i> Thanh toán & Lưu Combo`;
+                btnConfirm.className = "flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs shadow";
+            } else {
+                btnConfirm.innerHTML = `<i class="fa-solid fa-check mr-1"></i> Hoàn thành & Trả bàn`;
+                btnConfirm.className = "flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow";
+            }
+
+            if (grandTotal <= 0 && !forReservation) { alert("Bàn chưa có chi phí để thanh toán!"); return; }
+
+            const memo = encodeURIComponent(`TT ${table.name}`);
+            const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.BANK_ID}-${BANK_CONFIG.ACCOUNT_NO}-compact2.png?amount=${grandTotal}&addInfo=${memo}&accountName=${encodeURIComponent(BANK_CONFIG.ACCOUNT_NAME)}`;
+            document.getElementById('qr-image').src = qrUrl;
+            document.getElementById('full-qr-image').src = qrUrl;
+
+            toggleModal('qr-modal');
+        }
+
+        async function finishPayment() {
+            toggleModal('qr-modal');
+
+            if (isQuickDrinkPayment) {
+                await saveQuickDrinkHistory();
+                quickDrinkCart = {};
+                isQuickDrinkPayment = false;
+                render();
+                alert("Đã hoàn tất thanh toán Hóa đơn Bán Mang Về!");
+                return;
+            }
+
+            const table = tablesData.find(t => t.id === selectedTableId);
+            if (!table) return;
+
+            if (isReservationModeForPayment) {
+                const timeData = calculateTimeCostDetails(table);
+                const minutesLeft = Math.floor(timeData.remainingSec / 60);
+                document.getElementById('save-time-subtitle').innerText = `${table.name} (${timeData.labelText}): Đã thanh toán xong. Bảo lưu DƯ ${formatMinutesToText(minutesLeft)} còn lại.`;
+                toggleModal('save-time-modal');
+            } else {
+                await saveToHistoryDB(table, false);
+                await resetTableToDefaultDB(table);
+                render();
+            }
+        }
+
+        function toggleComboInputs() {
+            const mode = document.getElementById('input-pricing-mode').value;
+            if (mode === 'combo') {
+                document.getElementById('combo-settings').classList.remove('hidden');
+                document.getElementById('hourly-settings').classList.add('hidden');
+            } else {
+                document.getElementById('combo-settings').classList.add('hidden');
+                document.getElementById('hourly-settings').classList.remove('hidden');
+            }
+        }
+
+        async function saveTable(e) {
+            e.preventDefault();
+            const idInput = document.getElementById('edit-table-id').value;
+            const name = document.getElementById('input-table-name').value;
+            const type = document.getElementById('input-table-type').value;
+            const pricingMode = document.getElementById('input-pricing-mode').value;
+            const comboPrice = parseInt(document.getElementById('input-combo-price').value) || 89000;
+            const comboHours = parseInt(document.getElementById('input-combo-hours').value) || 2;
+            const extraHourPrice = parseInt(document.getElementById('input-extra-hour-price').value) || 29000;
+            const pricePerHour = parseInt(document.getElementById('input-table-price').value) || 40000;
+
+            if (idInput) {
+                const table = tablesData.find(t => t.id == idInput);
+                if (table) {
+                    table.name = name; table.type = type; table.pricingMode = pricingMode;
+                    table.comboPrice = comboPrice; table.comboHours = comboHours;
+                    table.extraHourPrice = extraHourPrice; table.pricePerHour = pricePerHour;
+                    table.defaultPricingMode = pricingMode; table.defaultComboHours = comboHours; table.defaultComboPrice = comboPrice;
+                    await updateTableOnDB(table);
+                }
+            } else {
+                const id = Date.now();
+                await _supabase.from('tables').insert({
+                    id, name, type, pricing_mode: pricingMode, combo_price: comboPrice,
+                    combo_hours: comboHours, extra_hour_price: extraHourPrice, price_per_hour: pricePerHour,
+                    default_pricing_mode: pricingMode, default_combo_hours: comboHours, default_combo_price: comboPrice
+                });
+                if (!selectedTableId) selectedTableId = id;
+            }
+
+            cancelEditTable();
+            await fetchAllData();
+        }
+
+        function editTable(id) {
+            const table = tablesData.find(t => t.id === id);
+            if (!table) return;
+
+            document.getElementById('edit-table-id').value = table.id;
+            document.getElementById('input-table-name').value = table.name;
+            document.getElementById('input-table-type').value = table.type;
+            document.getElementById('input-pricing-mode').value = table.pricingMode || 'combo';
+            document.getElementById('input-combo-price').value = table.comboPrice || 89000;
+            document.getElementById('input-combo-hours').value = table.comboHours || 2;
+            document.getElementById('input-extra-hour-price').value = table.extraHourPrice || 29000;
+            document.getElementById('input-table-price').value = table.pricePerHour || 40000;
+
+            toggleComboInputs();
+            document.getElementById('btn-save-table').innerText = "Cập Nhật Bàn";
+            document.getElementById('btn-save-table').className = "flex-1 bg-amber-600 text-white font-semibold py-1.5 rounded-lg text-xs hover:bg-amber-700";
+            document.getElementById('btn-cancel-table').classList.remove('hidden');
+        }
+
+        function cancelEditTable() {
+            document.getElementById('edit-table-id').value = '';
+            document.getElementById('table-form').reset();
+            toggleComboInputs();
+            document.getElementById('btn-save-table').innerText = "Thêm Bàn Mới";
+            document.getElementById('btn-save-table').className = "flex-1 bg-indigo-600 text-white font-semibold py-1.5 rounded-lg text-xs hover:bg-indigo-700";
+            document.getElementById('btn-cancel-table').classList.add('hidden');
+        }
+
+        async function deleteTable(id) {
+            if (confirm('Xóa bàn này khỏi hệ thống?')) {
+                await _supabase.from('tables').delete().eq('id', id);
+                if (selectedTableId === id) selectedTableId = null;
+                await fetchAllData();
+            }
+        }
+
+        function renderTableEditor() {
+            const container = document.getElementById('tables-editor-list');
+            container.innerHTML = '';
+            tablesData.forEach((table) => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center p-2 bg-slate-50 rounded-lg text-xs border';
+                const priceLabel = table.pricingMode === 'combo' ? `Combo ${table.comboHours}h: ${table.comboPrice.toLocaleString()}đ` : `Giờ lẻ: ${table.pricePerHour.toLocaleString()}đ/h`;
+                row.innerHTML = `
+                    <div><strong class="text-slate-800">${table.name}</strong> <span class="text-slate-400">(${priceLabel})</span></div>
+                    <div class="flex items-center space-x-1">
+                        <button onclick="editTable(${table.id})" class="text-amber-600 hover:text-amber-800 font-semibold px-1"><i class="fa-solid fa-pen"></i> Sửa</button>
+                        <button onclick="deleteTable(${table.id})" class="text-rose-600 hover:text-rose-800 font-semibold px-1"><i class="fa-solid fa-trash"></i> Xóa</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        async function addMenuItem(e) {
+            e.preventDefault();
+            const name = document.getElementById('item-name').value;
+            const price = parseInt(document.getElementById('item-price').value);
+            const category = document.getElementById('item-category').value;
+            const newItem = { id: 'm_' + Date.now(), name, price, category };
+
+            menuData.push(newItem);
+            renderDetail();
+            renderMenuEditor();
+
+            document.getElementById('item-name').value = '';
+            document.getElementById('item-price').value = '';
+
+            await _supabase.from('menu').insert(newItem);
+        }
+
+        async function deleteMenuItem(id) {
+            menuData = menuData.filter(m => m.id !== id);
+            renderDetail();
+            renderMenuEditor();
+
+            await _supabase.from('menu').delete().eq('id', id);
+        }
+
+        function renderMenuEditor() {
+            const container = document.getElementById('menu-editor-list');
+            container.innerHTML = '';
+            menuData.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center p-2 bg-slate-50 rounded-lg text-xs border';
+                let catText = 'Khác';
+                if (item.category === 'coffee') catText = 'Cà phê';
+                else if (item.category === 'tea_fruit') catText = 'Trà Tắc/Chanh';
+                else if (item.category === 'milk_tea') catText = 'Trà sữa';
+                else if (item.category === 'yogurt') catText = 'Sữa chua';
+                else if (item.category === 'matcha') catText = 'Matcha';
+                else if (item.category === 'workshop') catText = 'WS';
+
+                row.innerHTML = `
+                    <span><strong>${item.name}</strong> (${catText}) - ${item.price.toLocaleString()}đ</span>
+                    <button onclick="deleteMenuItem('${item.id}')" class="text-rose-600 hover:text-rose-800 font-bold px-2">Xóa</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                if (id === 'menu-modal') renderMenuEditor();
+                if (id === 'table-modal') renderTableEditor();
+                if (id === 'reservation-modal') renderReservations();
+                if (id === 'history-modal') renderHistory();
+            } else {
+                modal.classList.add('hidden'); modal.classList.remove('flex');
+            }
+        }
+
+        function render() {
+            renderTables();
+            renderDetail();
+        }
+
+        setInterval(() => { 
+            const activeTable = tablesData.find(t => t.id === selectedTableId);
+            if (activeTable && (activeTable.status === 'active' || activeTable.status === 'paused')) {
+                calculateTotal(activeTable);
+            }
+        }, 1000);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initSupabaseRealtime();
+            updateRoleUI();
+        });
+    </script>
+</body>
+</html>
